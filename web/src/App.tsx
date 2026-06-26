@@ -71,7 +71,7 @@ const t = {
 function Btn({ href, children, kind = 'ghost' }: { href: string; children: React.ReactNode; kind?: 'solid' | 'ghost' | 'ai' }) {
   const base = 'inline-flex items-center gap-2 px-5 py-2.5 text-sm font-mono tracking-wide border rounded-sm cursor-pointer transition-colors duration-200';
   const styles: Record<string, string> = {
-    solid: 'border-[var(--color-phosphor)] text-[#031006] bg-[var(--color-phosphor)] hover:bg-[#1aee44]',
+    solid: 'border-[var(--color-phosphor)] text-[#021004] font-semibold bg-[var(--color-phosphor)] hover:bg-[#1aee44]',
     ghost: 'border-[var(--color-line)] text-[var(--color-fg)] hover:border-[var(--color-phosphor)] hover:text-[var(--color-phosphor)]',
     ai: 'border-[color-mix(in_srgb,var(--color-ai)_40%,transparent)] text-[var(--color-ai)] hover:border-[var(--color-ai)]',
   };
