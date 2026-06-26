@@ -6,7 +6,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
 type Lang = 'en' | 'zh';
-const GITHUB = 'https://github.com/'; // TODO: real repo URL once published
+const GITHUB = 'https://github.com/kakon77777-commits/eml-phosphor';
 
 // Live playground: the ACTUAL 7-tab PHOSPHOR app, aliased from the repo root.
 const Playground = lazy(() => import('@phosphor/ui/src/App.jsx'));
