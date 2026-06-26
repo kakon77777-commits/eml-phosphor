@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 // Single engine: the verified P2 VMCore + the v0.4 EML-VM-BASIC profile.
 import {
   makeVMState, stepOnce, stepN, decode,
@@ -10,6 +10,11 @@ import {
   validateProgramConstraints, DEFAULT_BASIC_CONSTRAINTS, PROGRAM_BASIC_SUM,
   ConstraintViolation,
 } from '../../eml-vm-basic';
+// Single source of truth for the per-tick AI snapshot — the SAME builder the
+// headless AI-mode driver streams over WS/SSE (no re-implementation drift).
+import { buildHeadlessSnapshot } from '../../headless-snapshot';
+// v0.5 semantic layer: the operational meaning of the instruction at PC.
+import { describeEffect } from '../../eml-semantic';
 
 // ─── Program registry ────────────────────────────────────────────────────────
 const PROGRAMS = {
@@ -36,7 +41,11 @@ const C = {
   flash: '#ffffff', flashBg: 'rgba(255,255,255,0.13)', flashGlow: '0 0 8px rgba(255,255,255,0.6)',
   amber: '#ffaa00', border: '#0a1c0a', muted: '#0a2a0a',
   ai: '#00d2ff', aiDim: '#0a2230',   // AI-mode accent (cyan) — distinct from the human green
+  sem: '#5af0c8', semDim: '#13312a', // v0.5 semantic-layer accent (phosphor mint)
 };
+
+// Render a SemSlot (register / memory cell) for the semantics overlay.
+const slotName = (s) => (s.kind === 'reg' ? REG[s.index] : `[0x${h(s.index)}]`);
 
 function cellColor(val, isPC, isPCa, isSP, isFl) {
   if (isFl)  return { color: C.flash, bg: C.flashBg, shadow: C.flashGlow };
@@ -51,36 +60,6 @@ function cellColor(val, isPC, isPCa, isSP, isFl) {
 function regionOf(typeTable, addr) {
   if (!typeTable) return null;
   return typeTable.find(r => addr >= r.start && addr <= r.end) ?? null;
-}
-
-/**
- * Build the AI-mode projection (V_AI) of the current state M — the exact
- * HeadlessSnapshot an agent receives per tick. Same engine, decoupled output.
- */
-function buildAISnapshot(vm, prog, isBasic, cts) {
-  const op  = vm.memory[vm.pc] & 0xFF;
-  const arg = vm.memory[(vm.pc + 1) & 0xFF] & 0xFF;
-  const registers = {};
-  REG.forEach((n, i) => { registers[n] = vm.regs[i]; });
-  const changed = [...vm.changed].map(addr => ({
-    addr:   `0x${h(addr)}`,
-    symbol: cts.symbolTable?.get(addr)?.name ?? null,
-    after:  vm.memory[addr],
-  }));
-  return {
-    mode:  'ai',
-    arch:  isBasic ? 'EML-VM-BASIC' : 'EML-VM-16',
-    vm_id: prog.id,
-    tick:  vm.ticks,
-    pc:    `0x${h(vm.pc)}`,
-    pc_symbol:  cts.symbolTable?.get(vm.pc)?.name ?? null,
-    pc_comment: cts.commentTable?.get(vm.pc) ?? null,
-    instruction: decode(op, arg, cts),
-    registers,
-    flags: { Z: vm.flags.z, N: vm.flags.neg, G: vm.flags.gt },
-    changed_this_tick: changed,
-    halted: vm.halted,
-  };
 }
 
 function Btn({ onClick, active, disabled, children }) {
@@ -108,6 +87,9 @@ export default function PhosphorVM() {
   const [speed, setSpeed]     = useState('NORM');
   const [flash, setFlash]     = useState(new Set());
   const [violation, setViolation] = useState(null);
+  // Memory image one tick back, so the AI snapshot's changed_this_tick carries a
+  // real `before` (not before==after). Set synchronously as each step is taken.
+  const prevMemRef = useRef(null);
 
   const prog    = PROGRAMS[progName];
   const cts     = prog.cts ?? {};
@@ -129,7 +111,9 @@ export default function PhosphorVM() {
       setVM(prev => {
         if (prev.halted) { setRunning(false); return prev; }
         try {
-          return stepNAny(prev, n);
+          const next = stepNAny(prev, n);
+          prevMemRef.current = prev.memory;   // before-image for next's changed cells
+          return next;
         } catch (e) {
           const msg = e instanceof ConstraintViolation ? e.message : String(e?.message ?? e);
           queueMicrotask(() => { setRunning(false); setViolation(msg); });
@@ -156,19 +140,31 @@ export default function PhosphorVM() {
   const pcSymbol  = cts.symbolTable?.get(vm.pc) ?? null;
   const pcComment = cts.commentTable?.get(vm.pc) ?? null;
   const pcRegion  = regionOf(cts.typeTable, vm.pc);
+  const eff       = describeEffect(op, arg);   // v0.5 operational semantics of NEXT
 
   const constraintCheck = isBasic ? validateProgramConstraints(prog, CONSTRAINTS) : null;
-  const snapshot = buildAISnapshot(vm, prog, isBasic, cts);
+  // V_AI projection of the same state M — built by the shared headless builder.
+  const snapshot = buildHeadlessSnapshot({
+    id: prog.id, state: vm, mode: 'ai', arch, cts,
+    prevMem: prevMemRef.current ?? undefined,
+  });
 
   function stepOne() {
     setViolation(null);
-    setVM(s => { try { return stepOnceAny(s); } catch (e) { setViolation(e?.message ?? String(e)); return { ...s, halted: true }; } });
+    setVM(s => {
+      try {
+        const next = stepOnceAny(s);
+        prevMemRef.current = s.memory;   // before-image for next's changed cells
+        return next;
+      } catch (e) { setViolation(e?.message ?? String(e)); return { ...s, halted: true }; }
+    });
   }
   function loadProg(name) {
     setProgName(name);
     setRunning(false);
     setFlash(new Set());
     setViolation(null);
+    prevMemRef.current = null;
     setVM(makeVM(name));
   }
 
@@ -320,6 +316,25 @@ export default function PhosphorVM() {
                 ; {pcComment}
               </div>
             )}
+
+            {/* v0.5 semantic layer: operational meaning of this instruction */}
+            <div style={{ marginBottom: '8px', borderLeft: `2px solid ${C.semDim}`, paddingLeft: '8px' }}>
+              <div style={{ fontSize: '8px', color: '#2f6a5a', letterSpacing: '1px', marginBottom: '2px' }}>
+                Φ · SEMANTICS <span style={{ color: '#163a30' }}>v0.5</span>
+              </div>
+              <div style={{ fontSize: '11px', color: C.sem, textShadow: '0 0 5px rgba(90,240,200,0.3)', letterSpacing: '0.3px' }}>
+                {eff.summary}
+              </div>
+              <div style={{ fontSize: '8.5px', color: '#2a5a4a', marginTop: '3px', display: 'flex', gap: '9px', flexWrap: 'wrap' }}>
+                {eff.reads.length > 0  && <span>reads {eff.reads.map(slotName).join(' ')}</span>}
+                {eff.writes.length > 0 && <span>writes {eff.writes.map(slotName).join(' ')}</span>}
+                {eff.readsFlags.length > 0 && <span>?{eff.readsFlags.join('')}</span>}
+                {eff.flags.length > 0  && <span>flags {eff.flags.join('')}</span>}
+                {eff.mem !== 'none'    && <span>mem {eff.mem}</span>}
+                <span style={{ color: '#1f4a3c' }}>ctrl {eff.control}</span>
+              </div>
+            </div>
+
             <div style={{ display: 'flex', gap: '12px' }}>
               {[op, arg].map((byte, bi) => (
                 <div key={bi}>

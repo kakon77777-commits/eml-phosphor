@@ -15,6 +15,14 @@
 /** 8-bit unsigned integer (0–255). All VM data values and addresses. */
 export type u8 = number;
 
+/**
+ * Live EAI protocol/spec version advertised at runtime — the agent welcome
+ * `proto` field and the serialized manager-state `version`. Single source of
+ * truth so the two surfaces an agent reads cannot drift (they sat stale at
+ * `v0.1` from Phase 5 through v0.4 while the spec moved to v0.5).
+ */
+export const EAI_PROTO = 'EML-EAI-2026-v0.5';
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // § 2. Correspondence Table System (CTS) — Type Definitions
 // Completes Phase 1 CTS interface specification.
@@ -64,7 +72,7 @@ export interface CrossRefEntry {
 
 /** Complete Correspondence Table System */
 export interface CTS {
-  opcodeTable:  Map<u8, OpcodeEntry>;
+  opcodeTable:  Map<u8, OpcodeEntry>;     // Layer 1
   symbolTable:  Map<u8, SymbolEntry>;     // Layer 2
   typeTable:    RegionEntry[];            // Layer 3
   stringTable:  Map<u8, string>;          // Layer 4: addr → decoded string
@@ -772,25 +780,63 @@ export function resolveCTS(program: ProgramDefinition): CTS {
   };
 }
 
+/** One effective memory access (resolved at runtime) attributable to a tick. */
+export interface MemAccess {
+  kind: 'read' | 'write';
+  addr: u8;
+}
+
 /**
- * Augment a CTS with dynamically-observed data writers.
+ * Resolve the effective data-memory access an instruction performs, given the
+ * VM state *before* it executes (so register-indirect operands carry their
+ * runtime value). Returns `null` for instructions that touch no data memory.
  *
- * `buildCrossRef()` resolves writers statically only when the store's address
- * register was set by a nearby literal (MOVI/MOV/INC/ADDI). Register-indirect
- * stores — `ST [Rd], Rs` where Rd was loaded from memory at runtime — are
- * invisible to static analysis. This pass recovers them by diffing consecutive
- * memory snapshots: every address that changed during tick i is attributed as a
- * `dataWriter` at the instruction address recorded in `trace[i]`.
+ * This is the read-side counterpart to memory diffing: a `LD Rd,[Rs]` leaves no
+ * memory delta, so it is invisible to `augmentCTSFromTrace`'s diff pass — but its
+ * source address is `regs[Rs]` at this tick and is captured here.
+ */
+export function effectiveAccess(s: VMState): MemAccess | null {
+  const op  = s.memory[s.pc];
+  const arg = s.memory[(s.pc + 1) & 0xFF];
+  const d   = (arg >> 4) & 0xF;
+  const sv  = arg & 0xF;
+  switch (op) {
+    case 0x80: return { kind: 'read',  addr: s.regs[sv] };          // LD Rd,[Rs]
+    case 0x81: return { kind: 'write', addr: s.regs[d] };           // ST [Rd],Rs
+    case 0x60: return { kind: 'write', addr: s.sp };                // PUSH → MEM[SP]
+    case 0x70: return { kind: 'write', addr: s.sp };                // CALL → push PC
+    case 0x61: return { kind: 'read',  addr: (s.sp + 1) & 0xFF };   // POP  → MEM[SP+1]
+    case 0x71: return { kind: 'read',  addr: (s.sp + 1) & 0xFF };   // RET  → pop PC
+    default:   return null;
+  }
+}
+
+/**
+ * Augment a CTS with dynamically-observed data readers and writers.
+ *
+ * `buildCrossRef()` resolves accesses statically only when the address register
+ * was set by a nearby literal (MOVI/MOV/INC/ADDI). Register-indirect accesses —
+ * `ST [Rd], Rs` / `LD Rd, [Rs]` where the address register was loaded from memory
+ * at runtime — are invisible to static analysis. This pass recovers them two ways:
+ *
+ *  1. **Writers** (always): every address whose byte changed during tick i is
+ *     attributed as a `dataWriter` at `trace[i]`'s instruction address. This is
+ *     general — it also captures PUSH/CALL stack writes.
+ *  2. **Readers** (when `accesses` is supplied): a `LD` leaves no memory delta, so
+ *     reads cannot be diffed. When the per-tick effective-access stream from
+ *     `traceWithSnapshots()` is passed, each read address is attributed as a
+ *     `dataReader` (and each write corroborates a `dataWriter`).
  *
  * Contract: `memSnapshots[i]` is the memory state *before* `trace[i]` executes,
- * and `memSnapshots[trace.length]` is the final memory (length = trace.length+1).
- * Misaligned inputs are tolerated — only the overlapping prefix is scanned.
- * Pure: returns a new CTS; the input is not mutated.
+ * and `memSnapshots[trace.length]` is the final memory (length = trace.length+1);
+ * `accesses[i]` (if given) is the access `trace[i]` performed. Misaligned inputs
+ * are tolerated — only the overlapping prefix is scanned. Pure: returns a new CTS.
  */
 export function augmentCTSFromTrace(
   cts: CTS,
   trace: LogEntry[],
   memSnapshots: Uint8Array[],
+  accesses?: Array<MemAccess | null>,
 ): CTS {
   // Deep-copy the crossRef entries so the input CTS is untouched.
   const xref = new Map<u8, CrossRefEntry>();
@@ -802,6 +848,7 @@ export function augmentCTSFromTrace(
     return xref.get(addr)!;
   };
 
+  // (1) Writers via memory diff — general, catches register-indirect stores.
   const n = Math.min(trace.length, memSnapshots.length - 1);
   for (let i = 0; i < n; i++) {
     const before = memSnapshots[i];
@@ -816,29 +863,46 @@ export function augmentCTSFromTrace(
       }
     }
   }
+
+  // (2) Readers (and corroborating writers) via the effective-access stream.
+  if (accesses) {
+    const m = Math.min(trace.length, accesses.length);
+    for (let i = 0; i < m; i++) {
+      const acc = accesses[i];
+      if (!acc) continue;
+      const instrAddr = trace[i].pc as u8;
+      const e = ensure(acc.addr);
+      const bucket = acc.kind === 'read' ? e.dataReaders : e.dataWriters;
+      if (!bucket.includes(instrAddr)) bucket.push(instrAddr);
+    }
+  }
+
   return { ...cts, crossRefTable: xref };
 }
 
 /**
- * Run a program for up to `maxSteps`, capturing the per-tick execution trace and
- * a parallel sequence of memory snapshots suitable for `augmentCTSFromTrace()`.
- * `memSnapshots[0]` is the initial memory; `memSnapshots[i+1]` is the state after
- * `trace[i]`.
+ * Run a program for up to `maxSteps`, capturing the per-tick execution trace, a
+ * parallel sequence of memory snapshots, and the per-tick effective-access stream
+ * — all suitable for `augmentCTSFromTrace()`. `memSnapshots[0]` is the initial
+ * memory; `memSnapshots[i+1]` is the state after `trace[i]`; `accesses[i]` is the
+ * data-memory access (read/write/none) that `trace[i]` performed.
  */
 export function traceWithSnapshots(
   program: ProgramDefinition,
   maxSteps = 10_000,
-): { trace: LogEntry[]; memSnapshots: Uint8Array[] } {
+): { trace: LogEntry[]; memSnapshots: Uint8Array[]; accesses: Array<MemAccess | null> } {
   const cts = program.cts ?? {};
   let s = makeVMState(program);
   const trace: LogEntry[] = [];
+  const accesses: Array<MemAccess | null> = [];
   const memSnapshots: Uint8Array[] = [new Uint8Array(s.memory)];
   for (let i = 0; i < maxSteps && !s.halted; i++) {
+    const acc = effectiveAccess(s);   // resolve from pre-step state (runtime operands)
     s = stepOnce(s, cts);
-    if (s.log[0]) trace.push(s.log[0]);
+    if (s.log[0]) { trace.push(s.log[0]); accesses.push(acc); }
     memSnapshots.push(new Uint8Array(s.memory));
   }
-  return { trace, memSnapshots };
+  return { trace, memSnapshots, accesses };
 }
 
 /**

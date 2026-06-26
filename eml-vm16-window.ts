@@ -498,8 +498,6 @@ export class VMWindowManager {
     if (!srcRec) throw new Error(`Source window '${channel.srcId}' not found`);
     if (!dstRec) throw new Error(`Target window '${channel.dstId}' not found`);
 
-    const rangeLen = (channel.srcEnd - channel.srcStart + 1) & 0xFF;
-
     const unsub = srcRec.vm.subscribe(state => {
       state.changed.forEach(addr => {
         if (addr >= channel.srcStart && addr <= channel.srcEnd) {
@@ -552,7 +550,7 @@ export class VMWindowManager {
     }));
 
     return {
-      version:   'EML-EAI-2026-v0.1',
+      version:   EAI_PROTO,
       timestamp: new Date().toISOString(),
       windows,
       channels:  [...this.channels.values()],
@@ -700,7 +698,7 @@ export function createPipeline(
  * they are immediately mirrored into cipher-window's data region and
  * XOR-encrypted in place. The visual shows a live encrypted Fibonacci stream.
  */
-import { PROGRAM_FIBONACCI, PROGRAM_COUNTER, PROGRAM_XOR_CIPHER } from './eml-vm16-core';
+import { PROGRAM_FIBONACCI, PROGRAM_COUNTER, PROGRAM_XOR_CIPHER, EAI_PROTO } from './eml-vm16-core';
 
 export const DEMO_PIPELINE_FIBCIPHER: PipelineConfig = {
   id:    'demo-fib-cipher',

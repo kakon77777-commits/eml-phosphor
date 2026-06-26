@@ -22,7 +22,7 @@
 
 import {
   u8, VMState, VMSnapshot,
-  hex2, REG_NAMES,
+  hex2, REG_NAMES, EAI_PROTO,
 } from './eml-vm16-core';
 
 import {
@@ -454,7 +454,7 @@ export class AgentSession {
       type:     'event:welcome',
       session:  this.sessionId,
       manifest: manager.toManifest(),
-      proto:    'EML-EAI-2026-v0.1',
+      proto:    EAI_PROTO,
     });
   }
 

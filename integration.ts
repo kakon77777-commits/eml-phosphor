@@ -153,11 +153,12 @@ async function main(): Promise<void> {
     mgr.pauseAll();
   }
 
-  // ── Probe — P5 cmd:call wiring (known gap) ───────────────────────────────────
-  // The agent layer's cmd:call expects a CallableVM attached to the window VM.
-  // The window system never attaches one → this currently fails. Probe records
-  // the live behaviour so the fix can be verified against it.
-  head('Probe · P5 cmd:call — CallableVM reachability through a window');
+  // ── P5 cmd:call wiring — CallableVM reachable through a window ────────────────
+  // Was a v0.4 "known gap" probe (the window system did not attach a CallableVM);
+  // it now resolves end-to-end, so this is a HARD assertion in-process — matching
+  // test-ws.ts which asserts the same add(3,5)=8 over a real socket. Any v0.5+
+  // agent-layer / window refactor must keep this path green on both harnesses.
+  head('Step · P5 cmd:call — CallableVM reachability through a window');
   {
     const registry = buildProgramRegistry([PROGRAM_FUNCTIONS]);
     const mgr = createPipeline({
@@ -259,6 +260,44 @@ async function main(): Promise<void> {
     check('augmentCTSFromTrace recovers writer @0x80 (instr 0x08)',
       dynWriters.includes(0x08),
       `dynamic writers=[${dynWriters.map(w => '0x' + w.toString(16)).join(',')}]`);
+
+    // Register-indirect READ: load a pointer from MEM[0x10], then LD through it.
+    // A read leaves no memory delta, so the diff pass cannot see it; the effective-
+    // access stream from traceWithSnapshots recovers the dataReader dynamically.
+    const PTR_READ: ProgramDefinition = {
+      id: 'ptr-read', label: 'PTR_READ',
+      description: 'Register-indirect read: R2 = MEM[MEM[0x10]].',
+      code: [
+        0x11,0x0F,  // MOVI R0,#15
+        0x41,0x00,  // INC R0        → R0 = 0x10
+        0x80,0x10,  // LD R1,[R0]    → R1 = MEM[0x10] = 0x80 (runtime pointer)
+        0x80,0x21,  // LD R2,[R1]    → R2 = MEM[0x80]  (register-indirect read)
+        0x01,0x00,  // HALT
+      ],
+      initMem: { 0x10: 0x80, 0x80: 0x42 },
+      cts: {},
+    };
+    const staticRead = resolveCTS(PTR_READ);
+    const staticReaders = staticRead.crossRefTable.get(0x80)?.dataReaders ?? [];
+    check('static crossRef misses the register-indirect read @0x80',
+      staticReaders.length === 0,
+      `static readers=[${staticReaders.map(r => '0x' + r.toString(16)).join(',')}]`);
+
+    const rd = traceWithSnapshots(PTR_READ, 100);
+    const dynReadCts = augmentCTSFromTrace(staticRead, rd.trace, rd.memSnapshots, rd.accesses);
+    const dynReaders = dynReadCts.crossRefTable.get(0x80)?.dataReaders ?? [];
+    check('augmentCTSFromTrace recovers reader @0x80 (instr 0x06)',
+      dynReaders.includes(0x06),
+      `dynamic readers=[${dynReaders.map(r => '0x' + r.toString(16)).join(',')}]`);
+
+    // Negative control: a read leaves no memory delta, so WITHOUT the accesses
+    // stream the diff pass alone must NOT recover the reader — proving the
+    // accesses stream is the required mechanism (mirrors the writer test's omit).
+    const noAcc = augmentCTSFromTrace(staticRead, rd.trace, rd.memSnapshots);
+    const noAccReaders = noAcc.crossRefTable.get(0x80)?.dataReaders ?? [];
+    check('reader @0x80 NOT recovered without the accesses stream',
+      !noAccReaders.includes(0x06),
+      `readers w/o accesses=[${noAccReaders.map(r => '0x' + r.toString(16)).join(',')}]`);
 
     // stringTable: decode an embedded ASCII string.
     const mem = new Uint8Array(256);

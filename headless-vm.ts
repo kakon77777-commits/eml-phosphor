@@ -18,9 +18,9 @@
  */
 
 import {
-  makeVMState, stepOnce, decode, hex2, REG_NAMES,
+  hex2,
   PROGRAM_FIBONACCI, PROGRAM_COUNTER, PROGRAM_XOR_CIPHER,
-  type ProgramDefinition, type VMState, type VMFlags, type CTS,
+  type ProgramDefinition,
 } from './eml-vm16-core';
 
 import {
@@ -28,201 +28,23 @@ import {
 } from './eml-vm16-window';
 
 import {
-  makeBasicState, stepOnceBasic, stepNBasic,
   validateProgramConstraints,
   type BasicConstraints, DEFAULT_BASIC_CONSTRAINTS,
 } from './eml-vm-basic';
 
+// The snapshot builder and the run loop live in their own browser-safe modules so
+// the human-mode UI can share them (single source of truth) WITHOUT pulling in the
+// Node `ws`/process CLI below. Re-exported here so existing `./headless-vm`
+// importers (tests) keep resolving the same symbols.
 import {
-  type Emitter,
-} from './stream/phosphor-stream';
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// § 1. Snapshot Types
-// ═══════════════════════════════════════════════════════════════════════════════
-
-export type VMMode = 'ai' | 'human';
-
-/**
- * AI-readable per-tick snapshot. Architecture-neutral: works for both VM-16
- * (Uint8Array cells) and BASIC (Int32Array cells) since both expose
- * ArrayLike<number> memory/registers.
- */
-export interface HeadlessSnapshot {
-  mode:        VMMode;
-  arch:        string;
-  vm_id:       string;
-  tick:        number;
-  pc:          string;
-  pc_symbol:   string | null;
-  pc_comment:  string | null;
-  instruction: string;
-  registers:   Record<string, number>;
-  flags:       { Z: boolean; N: boolean; G: boolean };
-  changed_this_tick: { addr: string; symbol: string | null; before: number; after: number }[];
-  halted:      boolean;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// § 2. Snapshot Builder
-// ═══════════════════════════════════════════════════════════════════════════════
-
-/**
- * Build a HeadlessSnapshot from a VM state. The state shape is the structural
- * intersection of VMState (Uint8Array) and BasicState (Int32Array); both satisfy
- * ArrayLike<number> for memory/regs, so a single builder serves both archs.
- *
- * `prevMem` (if given) supplies the "before" value for changed cells; otherwise
- * the current value is used for both before/after.
- */
-export function buildHeadlessSnapshot(args: {
-  id:   string;
-  state: {
-    memory:  ArrayLike<number>;
-    regs:    ArrayLike<number>;
-    pc:      number;
-    sp:      number;
-    flags:   VMFlags;
-    ticks:   number;
-    halted:  boolean;
-    changed: Set<number>;
-  };
-  mode:    VMMode;
-  arch:    string;
-  cts?:    Partial<CTS>;
-  prevMem?: ArrayLike<number>;
-}): HeadlessSnapshot {
-  const { id, state, mode, arch, cts, prevMem } = args;
-  const mem = state.memory;
-  const op  = mem[state.pc];
-  const arg = mem[(state.pc + 1) & 0xFF] & 0xFF;
-
-  const sym = cts?.symbolTable;
-  const cmt = cts?.commentTable;
-
-  const changed = [...state.changed].map(addr => ({
-    addr:   `0x${hex2(addr)}`,
-    symbol: sym?.get(addr)?.name ?? null,
-    before: prevMem ? prevMem[addr] : mem[addr],
-    after:  mem[addr],
-  }));
-
-  const registers: Record<string, number> = {};
-  REG_NAMES.forEach((n, i) => { registers[n] = state.regs[i]; });
-
-  return {
-    mode,
-    arch,
-    vm_id:       id,
-    tick:        state.ticks,
-    pc:          `0x${hex2(state.pc)}`,
-    pc_symbol:   sym?.get(state.pc)?.name ?? null,
-    pc_comment:  cmt?.get(state.pc) ?? null,
-    instruction: decode(op, arg, cts),
-    registers,
-    flags:       { Z: state.flags.z, N: state.flags.neg, G: state.flags.gt },
-    changed_this_tick: changed,
-    halted:      state.halted,
-  };
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// § 3. Headless VM Driver
-// ═══════════════════════════════════════════════════════════════════════════════
-
-export interface HeadlessOptions {
-  program:      ProgramDefinition;
-  mode?:        VMMode;
-  speed?:       string;
-  maxSteps?:    number;
-  constraints?: BasicConstraints;
-  id?:          string;
-  onSnapshot?:  (s: HeadlessSnapshot) => void;
-  onHalt?:      (s: HeadlessSnapshot) => void;
-  emitter?:     Emitter;
-}
-
-const YIELD_EVERY = 2000;
-
-/**
- * Create a headless VM runner. If `constraints` is present the BASIC path is
- * used (makeBasicState / stepOnceBasic, arch 'EML-VM-BASIC'); otherwise the
- * VM-16 path (makeVMState / stepOnce, arch 'EML-VM-16').
- *
- * Per tick: capture prevMem → step once → build snapshot → onSnapshot +
- * emitter.emit('vm:tick', …). On HALT: onHalt + emitter.emit('vm:halt', …).
- * AI mode runs at max throughput, yielding to the event loop every ~2000 steps.
- */
-export function createHeadlessVM(opts: HeadlessOptions): {
-  run(): Promise<{ steps: number; halted: boolean; finalSnapshot: HeadlessSnapshot; finalState: any }>;
-  stop(): void;
-} {
-  const mode     = opts.mode ?? 'ai';
-  const maxSteps = opts.maxSteps ?? 1_000_000;
-  const id       = opts.id ?? opts.program.id;
-  const cts      = opts.program.cts ?? {};
-  const isBasic  = opts.constraints !== undefined;
-  const arch     = isBasic ? 'EML-VM-BASIC' : 'EML-VM-16';
-  const constraints = opts.constraints ?? DEFAULT_BASIC_CONSTRAINTS;
-
-  let stopped = false;
-
-  const run = async (): Promise<{ steps: number; halted: boolean; finalSnapshot: HeadlessSnapshot; finalState: any }> => {
-    let state: VMState | ReturnType<typeof makeBasicState> =
-      isBasic ? makeBasicState(opts.program, constraints) : makeVMState(opts.program);
-
-    let steps = 0;
-    // Snapshot fields helper: a flat record for the stream emitter.
-    const snapToFields = (s: HeadlessSnapshot): Record<string, unknown> => ({
-      arch:        s.arch,
-      mode:        s.mode,
-      vm_id:       s.vm_id,
-      vm_tick:     s.tick,
-      pc:          s.pc,
-      pc_symbol:   s.pc_symbol,
-      instruction: s.instruction,
-      registers:   s.registers,
-      flags:       s.flags,
-      changed:     s.changed_this_tick,
-      halted:      s.halted,
-    });
-
-    // Build an initial snapshot so finalSnapshot is always defined, even if the
-    // program halts before the first step.
-    let finalSnapshot: HeadlessSnapshot = buildHeadlessSnapshot({ id, state: state as any, mode, arch, cts });
-
-    while (!stopped && !state.halted && steps < maxSteps) {
-      const prevMem = state.memory;
-      state = isBasic
-        ? stepOnceBasic(state as ReturnType<typeof makeBasicState>, constraints, cts)
-        : stepOnce(state as VMState, cts);
-      steps++;
-
-      const snap = buildHeadlessSnapshot({ id, state: state as any, mode, arch, cts, prevMem });
-      finalSnapshot = snap;
-      opts.onSnapshot?.(snap);
-      opts.emitter?.emit('vm:tick', snapToFields(snap));
-
-      if (state.halted) {
-        opts.onHalt?.(snap);
-        opts.emitter?.emit('vm:halt', snapToFields(snap));
-        break;
-      }
-
-      // AI mode: max throughput, but yield periodically to stay non-blocking.
-      if (mode === 'ai' && steps % YIELD_EVERY === 0) {
-        await new Promise(r => setTimeout(r, 0));
-      }
-    }
-
-    return { steps, halted: state.halted, finalSnapshot, finalState: state };
-  };
-
-  return {
-    run,
-    stop() { stopped = true; },
-  };
-}
+  buildHeadlessSnapshot, headlessSnapshotToStreamFields,
+  type HeadlessSnapshot, type VMMode,
+} from './headless-snapshot';
+import { createHeadlessVM, type HeadlessOptions } from './headless-driver';
+export {
+  buildHeadlessSnapshot, headlessSnapshotToStreamFields, createHeadlessVM,
+  type HeadlessSnapshot, type VMMode, type HeadlessOptions,
+};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // § 4. CLI
@@ -315,8 +137,9 @@ async function cli(argv: string[]): Promise<void> {
   await runner.run();
 }
 
-// Guarded entry: only run when executed directly (not when imported by tests).
-if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('headless-vm.ts')) {
+// Guarded entry: only run when executed directly as a Node CLI (not when imported
+// by tests, and not when bundled into the browser where `process` is undefined).
+if (typeof process !== 'undefined' && process.argv?.[1]?.replace(/\\/g, '/').endsWith('headless-vm.ts')) {
   cli(process.argv.slice(2)).catch(err => {
     console.error('headless-vm crashed:', err);
     process.exitCode = 1;

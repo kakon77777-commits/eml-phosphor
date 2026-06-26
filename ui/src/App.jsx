@@ -1,39 +1,56 @@
 import { useState } from 'react';
 import PhosphorVM from './PhosphorVM.jsx';
+import VM64View from './VM64View.jsx';
+import EquivLab from './EquivLab.jsx';
+import CtsInspector from './CtsInspector.jsx';
+import EmlInterop from './EmlInterop.jsx';
+import AgentStream from './AgentStream.jsx';
 // binary-matrix lives in the parent folder; imported directly (no copy).
 import BinaryMatrix from '../../binary-matrix.jsx';
+import { C, VERSION, BrandFooter } from './theme.jsx';
 
 const TABS = [
-  { id: 'vm',     label: '▸ EML-VM-16' },
-  { id: 'matrix', label: '▸ BINARY MATRIX' },
+  { id: 'vm',     label: '▸ EML-VM-16', el: <PhosphorVM /> },
+  { id: 'vm64',   label: '▸ EML-VM-64', el: <VM64View /> },
+  { id: 'equiv',  label: '▸ SEMANTIC ≡', el: <EquivLab /> },
+  { id: 'cts',    label: '▸ CTS',       el: <CtsInspector /> },
+  { id: 'eml',    label: '▸ EML',       el: <EmlInterop /> },
+  { id: 'agent',  label: '▸ AGENT',     el: <AgentStream /> },
+  { id: 'matrix', label: '▸ MATRIX',    el: <BinaryMatrix /> },
 ];
 
 export default function App() {
   const [view, setView] = useState('vm');
+  const active = TABS.find(t => t.id === view) ?? TABS[0];
   return (
-    <div style={{ minHeight: '100vh', background: '#040c04', fontFamily: '"Courier New",Courier,monospace' }}>
+    <div style={{ minHeight: '100vh', background: C.bg, fontFamily: '"Courier New",Courier,monospace', display: 'flex', flexDirection: 'column' }}>
       <div style={{
-        display: 'flex', gap: '4px', alignItems: 'center',
+        display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap',
         padding: '6px 14px', borderBottom: '1px solid #0a1c0a',
-        position: 'sticky', top: 0, zIndex: 30, background: '#040c04',
+        position: 'sticky', top: 0, zIndex: 30, background: C.bg,
       }}>
-        <span style={{ color: '#00ff41', fontSize: '11px', letterSpacing: '2px', marginRight: '10px', textShadow: '0 0 8px rgba(0,255,65,0.5)' }}>
+        <span style={{ color: C.bright, fontSize: '11px', letterSpacing: '2px', marginRight: '4px', textShadow: '0 0 8px rgba(0,255,65,0.5)' }}>
           PHOSPHOR
+        </span>
+        <span style={{ color: '#1a4a1a', fontSize: '8px', letterSpacing: '0.5px', marginRight: '8px' }}>
+          v{VERSION} · <span style={{ color: C.amber }}>EXPERIMENTAL</span>
         </span>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setView(t.id)} style={{
             background: 'none', cursor: 'pointer',
             border: `1px solid ${view === t.id ? '#00ff41' : '#1a4a1a'}`,
             color: view === t.id ? '#00ff41' : '#1a4a1a',
-            fontSize: '10px', fontFamily: 'inherit', padding: '3px 10px', letterSpacing: '1px',
+            fontSize: '10px', fontFamily: 'inherit', padding: '3px 9px', letterSpacing: '1px', borderRadius: '2px',
             textShadow: view === t.id ? '0 0 5px rgba(0,255,65,0.4)' : 'none',
           }}>{t.label}</button>
         ))}
         <span style={{ marginLeft: 'auto', color: '#0a2a0a', fontSize: '8px', letterSpacing: '1px' }}>
-          engine: P2 VMCore (verified) · single source of truth
+          Φ : M × CTS → V · 可見即可視
         </span>
       </div>
-      {view === 'vm' ? <PhosphorVM /> : <BinaryMatrix />}
+
+      <div style={{ flex: 1 }}>{active.el}</div>
+      <BrandFooter />
     </div>
   );
 }
