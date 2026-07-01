@@ -7,7 +7,6 @@ gsap.registerPlugin(useGSAP, ScrollTrigger);
 
 type Lang = 'en' | 'zh';
 const GITHUB = 'https://github.com/kakon77777-commits/eml-phosphor';
-const RELEASES = `${GITHUB}/releases`;
 const SRC_ZIP = '/download/phosphor-v0.5.0-beta-source.zip';
 
 // Live playground: the ACTUAL 7-tab PHOSPHOR app, aliased from the repo root.
@@ -24,7 +23,7 @@ const t = {
     proof: '151 checks green · adversarially reviewed · Apache-2.0',
     aiLayer: '/ai/ — for agents & models',
     agentFirst: 'Built for agents — the source and the phosphor-jsonl-v1 stream are the product. The CRT UI and the .exe just let a human see the principle.',
-    forAgents: 'for agents', forHumans: 'for humans',
+    forAgents: 'for agents', forHumans: 'for humans', seeItRun: 'See it run',
     s1: { n: '01', k: 'Thesis', h: 'Two users. One state machine.',
       p: 'Traditional debuggers read a program’s shadow. PHOSPHOR shares one state machine M with the visualization — no observer, only execution.',
       human: 'HUMAN MODE', humanD: 'A phosphor-green CRT you watch run — the observation window.',
@@ -54,7 +53,7 @@ const t = {
     proof: '151 項檢查全綠 · 經對抗式審查 · Apache-2.0',
     aiLayer: '/ai/ — 給 agent 與模型',
     agentFirst: '為 agent 而生——原始碼與 phosphor-jsonl-v1 事件流才是本體；CRT 介面與 .exe 只是讓人類看見原理。',
-    forAgents: '給 agent', forHumans: '給人類',
+    forAgents: '給 agent', forHumans: '給人類', seeItRun: '看它跑',
     s1: { n: '01', k: '命題', h: '兩個使用者，一台狀態機。',
       p: '傳統除錯器讀的是程式的「影子」；PHOSPHOR 與視覺化共用同一台狀態機 M——沒有觀察者，只有執行。',
       human: '人類模式', humanD: '一台磷光綠 CRT，你看著它跑——觀察視窗。',
@@ -285,7 +284,7 @@ export default function App() {
           <div data-reveal className="mt-6 flex flex-wrap gap-3 items-center">
             <Btn href={GITHUB} kind="solid">{L.github} ↗</Btn>
             <Btn href={SRC_ZIP} kind="ai">↓ {L.zip} · {L.forAgents}</Btn>
-            <Btn href={RELEASES} kind="ghost">↓ {L.exe} · {L.forHumans}</Btn>
+            <Btn href="#playground" kind="ghost">▸ {L.seeItRun} · {L.forHumans}</Btn>
           </div>
         </section>
       </main>
