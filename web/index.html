@@ -12,6 +12,41 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+    <!-- Canonical + social -->
+    <link rel="canonical" href="https://emlphosphor.com/" />
+    <meta property="og:url" content="https://emlphosphor.com/" />
+
+    <!-- AI-native layer (AICL · AIRS · AILP): agents should read these, not scrape the SPA -->
+    <link rel="alternate" type="text/plain" href="/llms.txt" title="LLM / agent entry index (llms.txt)" />
+    <link rel="alternate" type="application/json" href="/ai/manifest.json" title="AI resource manifest" />
+    <link rel="alternate" type="application/json" href="/ai/rights-spectrum.json" title="AI learning rights (AIRS · AILP)" />
+    <meta name="ai-content-declaration" content="/ai/rights-spectrum.json" />
+
+    <!-- Structured data: machine-readable facts + license for crawlers and AI -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareSourceCode",
+      "name": "PHOSPHOR",
+      "alternateName": "Execution-as-Interface — Visible ≡ Visualizable",
+      "url": "https://emlphosphor.com/",
+      "codeRepository": "https://github.com/kakon77777-commits/eml-phosphor",
+      "programmingLanguage": "TypeScript",
+      "softwareVersion": "0.5.0-beta",
+      "license": "https://www.apache.org/licenses/LICENSE-2.0",
+      "description": "Make machine-code execution legible to humans and AI agents at the same time. A VM's execution paired with a Correspondence Table System is simultaneously a human visualization and an AI-parseable event stream. Φ : M × CTS → V.",
+      "author": {
+        "@type": "Person",
+        "name": "Neo.K (許筌崴)"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "EVEMISS TECHNOLOGY CO., LTD.",
+        "alternateName": "一言諾科技有限公司"
+      }
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

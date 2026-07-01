@@ -7,6 +7,8 @@ gsap.registerPlugin(useGSAP, ScrollTrigger);
 
 type Lang = 'en' | 'zh';
 const GITHUB = 'https://github.com/kakon77777-commits/eml-phosphor';
+const RELEASES = `${GITHUB}/releases`;
+const SRC_ZIP = '/download/phosphor-v0.5.0-beta-source.zip';
 
 // Live playground: the ACTUAL 7-tab PHOSPHOR app, aliased from the repo root.
 const Playground = lazy(() => import('@phosphor/ui/src/App.jsx'));
@@ -17,9 +19,12 @@ const t = {
     tag: 'Execution-as-Interface',
     h1a: 'Visible', h1b: 'Visualizable',
     lead: "A VM's execution, paired with a complete Correspondence Table System, is at once a human-readable visualization and an AI-parseable event stream — not two representations of one object, but the same object viewed two ways.",
-    play: 'Open Playground', github: 'GitHub', exe: 'Download .exe',
+    play: 'Open Playground', github: 'GitHub', exe: 'Download .exe', zip: 'Download source .zip',
     badge: 'v0.5.0-beta · EXPERIMENTAL',
     proof: '151 checks green · adversarially reviewed · Apache-2.0',
+    aiLayer: '/ai/ — for agents & models',
+    agentFirst: 'Built for agents — the source and the phosphor-jsonl-v1 stream are the product. The CRT UI and the .exe just let a human see the principle.',
+    forAgents: 'for agents', forHumans: 'for humans',
     s1: { n: '01', k: 'Thesis', h: 'Two users. One state machine.',
       p: 'Traditional debuggers read a program’s shadow. PHOSPHOR shares one state machine M with the visualization — no observer, only execution.',
       human: 'HUMAN MODE', humanD: 'A phosphor-green CRT you watch run — the observation window.',
@@ -44,9 +49,12 @@ const t = {
     tag: '執行即介面',
     h1a: '可見', h1b: '可視',
     lead: '一個 VM 的實際執行，配上完整的對應表系統（CTS），同時就是人類可讀的視覺化、與 AI 可解析的事件流——不是同一物件的兩種表示，而是同一物件的兩種觀看方式。',
-    play: '開啟互動場', github: 'GitHub', exe: '下載 .exe',
+    play: '開啟互動場', github: 'GitHub', exe: '下載 .exe', zip: '下載原始碼 .zip',
     badge: 'v0.5.0-beta · 實驗版',
     proof: '151 項檢查全綠 · 經對抗式審查 · Apache-2.0',
+    aiLayer: '/ai/ — 給 agent 與模型',
+    agentFirst: '為 agent 而生——原始碼與 phosphor-jsonl-v1 事件流才是本體；CRT 介面與 .exe 只是讓人類看見原理。',
+    forAgents: '給 agent', forHumans: '給人類',
     s1: { n: '01', k: '命題', h: '兩個使用者，一台狀態機。',
       p: '傳統除錯器讀的是程式的「影子」；PHOSPHOR 與視覺化共用同一台狀態機 M——沒有觀察者，只有執行。',
       human: '人類模式', humanD: '一台磷光綠 CRT，你看著它跑——觀察視窗。',
@@ -88,7 +96,7 @@ function SectionHead({ n, k, h }: { n: string; k: string; h: string }) {
 }
 
 const VMS = [
-  { name: 'EML-VM-16', spec: '8-bit · 256 B · u8 · 38-op ISA', use: 'prototype / teaching', c: 'var(--color-phosphor)' },
+  { name: 'EML-VM-16', spec: '8-bit · 256 B · u8 · 28-op ISA', use: 'prototype / teaching', c: 'var(--color-phosphor)' },
   { name: 'EML-VM-64', spec: '16-bit · 64 KB · AR0–AR3 · variable-length ISA', use: 'larger address space · V1-compatible', c: 'var(--color-ai)' },
   { name: 'EML-VM-BASIC', spec: 'bounded int [0,N] · constraint engine', use: 'wrap / clamp / throw · cleanest AI substrate', c: 'var(--color-amber)' },
 ];
@@ -173,7 +181,7 @@ export default function App() {
           <div className="mt-10 flex flex-wrap gap-3">
             <span data-hero-cta><Btn href="#playground" kind="solid">▸ {L.play}</Btn></span>
             <span data-hero-cta><Btn href={GITHUB} kind="ghost">{L.github}</Btn></span>
-            <span data-hero-cta><Btn href={GITHUB} kind="ghost">↓ {L.exe}</Btn></span>
+            <span data-hero-cta><Btn href={SRC_ZIP} kind="ai">↓ {L.zip}</Btn></span>
           </div>
           <p data-hero-cta className="mt-8 font-mono text-[11px] text-[var(--color-muted)]">{L.proof}</p>
         </section>
@@ -273,9 +281,11 @@ export default function App() {
               </div>
             ))}
           </div>
-          <div data-reveal className="mt-10 flex flex-wrap gap-3">
+          <p data-reveal className="mt-8 max-w-2xl text-sm text-[var(--color-fg-soft)]">{L.agentFirst}</p>
+          <div data-reveal className="mt-6 flex flex-wrap gap-3 items-center">
             <Btn href={GITHUB} kind="solid">{L.github} ↗</Btn>
-            <Btn href={GITHUB} kind="ghost">↓ {L.exe}</Btn>
+            <Btn href={SRC_ZIP} kind="ai">↓ {L.zip} · {L.forAgents}</Btn>
+            <Btn href={RELEASES} kind="ghost">↓ {L.exe} · {L.forHumans}</Btn>
           </div>
         </section>
       </main>
@@ -288,6 +298,10 @@ export default function App() {
           <span>© 2026 <span className="text-[var(--color-fg)]">EVEMISS TECHNOLOGY CO., LTD.</span>（一言諾科技有限公司）</span>
           <span>Author <span className="text-[var(--color-fg)]">許筌崴 Neo.K</span></span>
           <span>Apache-2.0</span>
+          <a href="/ai/" title="AI Ingestion & Capability Layer — machine-readable corpus + rights"
+            className="text-[var(--color-ai)] hover:text-[var(--color-mint)] underline decoration-dotted underline-offset-4 transition-colors">
+            {L.aiLayer}
+          </a>
         </div>
       </footer>
     </div>

@@ -111,7 +111,7 @@ mon.emit('agent:done', { agent: 'codex', code });   // code !== 0 is auto-flagge
 | VM | Address space | Value domain | ISA | Use |
 |----|---------------|--------------|-----|-----|
 | EML-VM-BASIC | 8-bit (256 cells) | bounded int `[0,N]` | minimal (no mul/div/logic) | cleanest AI-mode substrate |
-| EML-VM-16 | 8-bit (256 B) | u8 | full 38-op ISA | prototype / teaching |
+| EML-VM-16 | 8-bit (256 B) | u8 | full 28-op ISA | prototype / teaching |
 | EML-VM-64 | 16-bit (64 KB) | u8 + 16-bit AR | full V2 ISA | larger address space |
 | EML-VM-F32 / F64 | TBD | float | TBD | **deferred (post-v0.5)** |
 

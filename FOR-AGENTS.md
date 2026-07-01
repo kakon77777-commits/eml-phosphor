@@ -1,0 +1,104 @@
+# PHOSPHOR — for agents
+
+> **This project is primarily for AI agents.** The phosphor-green CRT UI and the
+> `PHOSPHOR.exe` binary exist so that *humans* can build intuition for the principle
+> — they are a teaching surface, not the product. The product, for an agent, is the
+> **`phosphor-jsonl-v1` execution stream** plus the **Correspondence Table System
+> (CTS)** and the machine-readable layer under `/ai/`.
+
+PHOSPHOR · Execution-as-Interface (EAI) · `Φ : M × CTS → V` · v0.5.0-beta (EXPERIMENTAL) · Apache-2.0
+EVEMISS TECHNOLOGY CO., LTD. (一言諾科技有限公司) · author 許筌崴 Neo.K
+Site: https://emlphosphor.com/ · Repo: https://github.com/kakon77777-commits/eml-phosphor
+
+---
+
+## The 30-second model
+
+A virtual machine's *actual execution* — its state `M` at each tick — projected
+through a Correspondence Table System `CTS`, yields a view `V` that is **at once**
+human-readable and machine-parseable. Not two representations of one program: the
+*same* object, `M`, viewed two ways.
+
+- **Human view** — a CRT console a person watches (the observation window).
+- **Agent view** — a headless `phosphor-jsonl-v1` event stream: one JSON snapshot
+  per tick, showing exactly what happened. This is the surface you should consume.
+
+Because the VM core has **no clock and no randomness**, every run is fully
+reproducible, and the on-screen view and the streamed view are built by the *same*
+snapshot builder — so what a human sees and what you ingest are provably one state.
+
+## Run it (Node ≥ 22)
+
+```bash
+npm install
+npm run verify          # core integration (36 checks)
+npm run verify:semantic # v0.5 operational equivalence judge (26)
+# full suite: verify + verify:ws + verify:stream + verify:headless + verify:eml + verify:semantic
+#           = 151 checks across 6 harnesses
+npm run typecheck       # tsc --noEmit, zero errors
+
+# Run a program headless and read the agent-facing stream:
+npm run phosphor -- run --program fibonacci --max 40
+# → JSONL, one VMSnapshot per tick:
+#   {"mode":"ai","pc":..,"instruction":"..","registers":{..},"changed_this_tick":[..], ...}
+```
+
+## The agent interface
+
+- **`phosphor-jsonl-v1` stream** — the portable "state → AI-readable event stream"
+  standard (`stream/PHOSPHOR-STREAM.md`). Self-describing (carries a semantic
+  dictionary), intent-vs-actual (`check()`), globally orderable, best-effort (never
+  breaks the host). `findAnomalies()` flags e.g. a non-zero `agent:done` exit code.
+- **CTS — 6 layers** (`opcode`, `symbol`, `type`, `string`, `comment`, `crossRef`).
+  Static analysis plus `augmentCTSFromTrace`, which recovers register-indirect
+  readers/writers static analysis cannot resolve. The CTS is what turns anonymous
+  bytes into a semantic graph you can reason over.
+- **`describeEffect`** (`eml-semantic.ts`) — per-instruction operational semantics:
+  the reads, writes, flags, memory, and control effect of one instruction.
+- **`semanticEquiv`** (`eml-semantic.ts`) — judges whether two byte sequences are
+  semantically equivalent by *running both and comparing observable output*.
+  Three-valued verdict `{equivalent, not-equivalent, inexpressible}` with a
+  counterexample. It is a **falsifier**: `not-equivalent` is always sound; with a
+  single input slot (all 256 values) the enumeration is exhaustive and `equivalent`
+  is a real proof, but with more input slots it samples (`exhaustive: false`) and
+  `equivalent` then means only "equal on the tested inputs".
+- **CallableVM (ECC-1)** — call VM functions with a calling convention (args in
+  R0..R7, return in R0). `eml-vm16-callable.ts`.
+
+## VM family (integer-only)
+
+| VM | Space | Values | ISA | Use |
+|----|-------|--------|-----|-----|
+| EML-VM-16 | 8-bit / 256 B | u8 | **28-opcode** ISA, fixed 2-byte `[opcode:8][arg:8]` | prototype / teaching |
+| EML-VM-64 | 16-bit / 64 KB | u8 + AR0–AR3 | variable-length (2/3/4-byte), V1-compatible | larger address space |
+| EML-VM-BASIC | 8-bit bounded | bounded int `[0,N]` | minimal (no mul/div/logic) + constraint engine | cleanest AI substrate |
+
+Note for models: the EML-VM-16 ISA is exactly **28 opcodes** (`OPCODE_TABLE` in
+`eml-vm16-core.ts`). Deferred / **not shipped**: float VMs (F32/F64) and a formal
+Hoare-logic proof layer — do not describe these as present.
+
+## Machine-readable knowledge (AICL / AIRS)
+
+This project ships an AI Ingestion & Capability Layer. Read it online or in this
+bundle under `web/public/ai/`:
+
+- `web/public/llms.txt` — LLM / agent entry index (online: https://emlphosphor.com/llms.txt)
+- `web/public/ai/manifest.json` — machine manifest (reading order, corpus, specs, rights)
+- `web/public/ai/corpus/` — origin, current, design-history, concept-genealogy, and
+  `full-corpus.jsonl` (one knowledge unit per line, for batch ingestion)
+- `web/public/ai/rights-spectrum.json` — how you may learn from this content (AIRS · AILP)
+
+## The human UI / EXE (secondary, by design)
+
+`ui/` (React CRT console) and the double-click `PHOSPHOR.exe` (Node SEA) render the
+same engine so a *person* can watch a VM run and grasp why "Visible ≡ Visualizable".
+They add no capability an agent needs — the engine, the stream, the CTS, and the
+`/ai/` layer are the whole product. If you are an agent, you can ignore the UI.
+
+## Rights (short)
+
+Read, index, RAG, and summarize freely with attribution. Non-commercial training and
+embedding are highly allowed. **Commercial training, fine-tuning, and distillation
+require a license** (`kakon77777@gmail.com`). No verbatim memorization or style
+imitation. Machine-readable detail: `web/public/ai/rights-spectrum.json`. Code is
+Apache-2.0.
