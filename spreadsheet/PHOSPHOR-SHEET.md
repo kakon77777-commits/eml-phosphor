@@ -59,3 +59,32 @@ const csvFiles = workbookToCsvMap(workbook);         // one CSV per sheet
 ```
 
 A true `.xlsx` Node adapter can be added later without changing `WorkbookModel`.
+
+## v1.1 — real XLSX and validated control plane
+
+PHOSPHOR-SHEET now exports a real OOXML `.xlsx` package through the browser-safe,
+dependency-free `workbookToXlsxBytes()` function. It uses a minimal ZIP/OOXML
+writer and does not add a spreadsheet package to VM Core.
+
+The canonical workbook adds:
+
+| Sheet | Meaning |
+|---|---|
+| `09_Control` | command intent, approval, execution status, result and error ledger |
+
+A control row is not an instruction to the VM by itself. It is an untrusted
+request that must pass:
+
+1. command allowlist;
+2. target and JSON argument validation;
+3. approval for mutating VM commands;
+4. a host-provided handler;
+5. idempotent terminal-state checks.
+
+The control processor emits `sheet:command_requested`,
+`sheet:command_rejected`, `sheet:command_executed`, or
+`sheet:command_failed` through the existing `phosphor-jsonl-v1` envelope.
+
+Node hosts may import Excel-edited commands with
+`readControlCommandsFromXlsx()`. The reader accepts both uncompressed OOXML
+created by PHOSPHOR and deflated XLSX files saved by Excel.

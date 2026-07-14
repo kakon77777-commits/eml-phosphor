@@ -30,7 +30,7 @@ const wb = buildPhosphorWorkbook({
 
 eq(wb.proto, SHEET_PROTO, 'workbook protocol');
 eq(wb.generated_at, '2026-01-01T00:00:00Z', 'deterministic generated_at');
-eq(wb.sheets.length, 9, 'nine canonical sheets');
+eq(wb.sheets.length, 10, 'ten canonical sheets');
 eq(wb.manifest.snapshot_count, 2, 'manifest snapshot count');
 eq(wb.manifest.event_count, 4, 'manifest event count');
 eq(wb.manifest.anomaly_count, 1, 'manifest anomaly count');
@@ -57,8 +57,11 @@ const csv = sheetToCsv(tick);
 ok(csv.startsWith('\uFEFF'), 'CSV has UTF-8 BOM');
 ok(csv.includes('VM ID,Architecture,Mode,Tick'), 'CSV header');
 const csvMap = workbookToCsvMap(wb);
-eq(Object.keys(csvMap).length, 9, 'CSV map has one file per sheet');
+eq(Object.keys(csvMap).length, 10, 'CSV map has one file per sheet');
 ok('00_Manifest.csv' in csvMap, 'manifest CSV named by sheet');
+const control = wb.sheets.find(s => s.id === 'control')!;
+eq(control.name, '09_Control', 'control sheet is canonical');
+eq(control.rows[0][6], 'DRAFT', 'control template begins in DRAFT');
 const xml = workbookToSpreadsheetML(wb);
 ok(xml.includes('Excel.Sheet'), 'SpreadsheetML declares Excel application');
 ok(xml.includes('ss:Name="01_Tick_Ledger"'), 'SpreadsheetML contains tick sheet');

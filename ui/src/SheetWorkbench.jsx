@@ -7,12 +7,13 @@ import {
   sheetToCsv,
   workbookToSpreadsheetML,
 } from '../../spreadsheet/phosphor-sheet';
+import { workbookToXlsxBytes } from '../../spreadsheet/phosphor-xlsx';
 import { C, panelHead, Screen, TabTitle } from './theme.jsx';
 
 const PROGRAMS = { fibonacci: PROGRAM_FIBONACCI, counter: PROGRAM_COUNTER, xor: PROGRAM_XOR_CIPHER };
 
-function download(name, text, type) {
-  const blob = new Blob([text], { type });
+function download(name, content, type) {
+  const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = name; a.click();
@@ -56,7 +57,7 @@ export default function SheetWorkbench() {
   return (
     <Screen>
       <TabTitle accent={C.ai} title="SHEET · WORKBOOK"
-        sub="Third EAI projection · the same execution becomes a human/agent-readable workbook — read-only, deterministic, exportable" />
+        sub="Third EAI projection · the same execution becomes a human/agent-readable workbook — deterministic, exportable, control-ready" />
 
       <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '10px' }}>
         {Object.keys(PROGRAMS).map(name => (
@@ -66,7 +67,8 @@ export default function SheetWorkbench() {
         <input value={maxSteps} onChange={e => setMaxSteps(Number(e.target.value) || 0)} style={input} />
         <button onClick={run} disabled={busy} style={action}>{busy ? '…' : '▶ BUILD WORKBOOK'}</button>
         {workbook && <>
-          <button onClick={() => download('phosphor-workbook.xml', workbookToSpreadsheetML(workbook), 'application/xml')} style={exportBtn}>↓ EXCEL XML</button>
+          <button onClick={() => download('phosphor-workbook.xlsx', workbookToXlsxBytes(workbook), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')} style={exportBtn}>↓ XLSX</button>
+          <button onClick={() => download('phosphor-workbook.xml', workbookToSpreadsheetML(workbook), 'application/xml')} style={exportBtn}>↓ XML</button>
           {active && <button onClick={() => download(`${active.name}.csv`, sheetToCsv(active), 'text/csv;charset=utf-8')} style={exportBtn}>↓ CURRENT CSV</button>}
         </>}
       </div>

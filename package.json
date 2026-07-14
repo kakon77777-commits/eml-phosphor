@@ -15,7 +15,8 @@
     "verify:sheet": "tsx spreadsheet/test-sheet.ts",
     "phosphor": "tsx headless-vm.ts",
     "scan": "tsx stream/scan.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify:sheet-control": "tsx spreadsheet/test-sheet-control.ts"
   },
   "dependencies": {
     "ws": "^8.18.0"

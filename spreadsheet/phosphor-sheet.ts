@@ -77,6 +77,12 @@ export interface DictionaryEntryLike {
 }
 export type DictionaryLike = Record<string, DictionaryEntryLike>;
 
+export interface ControlRowLike {
+  command_id?: string; command?: string; target?: string; args_json?: string;
+  requested_by?: string; approved?: boolean; status?: string; created_at?: string;
+  executed_at?: string; result_json?: string; error?: string;
+}
+
 export interface BuildWorkbookInput {
   snapshots?: SnapshotLike[];
   events?: EventLike[];
@@ -84,6 +90,7 @@ export interface BuildWorkbookInput {
   cts?: unknown;
   manifest?: Record<string, SheetCell>;
   generatedAt?: string;
+  controlRows?: ControlRowLike[];
 }
 
 const ENVELOPE = new Set(['stream', 'proto', 'seq', 'ts', 'type', 'writer', 'mono']);
@@ -342,6 +349,27 @@ export function buildPhosphorWorkbook(input: BuildWorkbookInput): WorkbookModel 
       { key: 'value', label: 'Value', kind: 'json' },
     ],
     input.cts === undefined ? [] : flattenCts(input.cts),
+  ));
+
+  const controlRows = input.controlRows?.length ? input.controlRows : [{
+    command_id: 'cmd-001', command: '', target: '', args_json: '{}', requested_by: '',
+    approved: false, status: 'DRAFT', created_at: '', executed_at: '', result_json: '', error: '',
+  }];
+  sheets.push(sheet(
+    'control', '09_Control', 'Validated command intent. Mutating commands require approval and host-provided handlers.',
+    [
+      { key: 'command_id', label: 'Command ID' }, { key: 'command', label: 'Command' },
+      { key: 'target', label: 'Target' }, { key: 'args_json', label: 'Args JSON', kind: 'json' },
+      { key: 'requested_by', label: 'Requested By' }, { key: 'approved', label: 'Approved', kind: 'boolean' },
+      { key: 'status', label: 'Status' }, { key: 'created_at', label: 'Created At', kind: 'timestamp' },
+      { key: 'executed_at', label: 'Executed At', kind: 'timestamp' },
+      { key: 'result_json', label: 'Result JSON', kind: 'json' }, { key: 'error', label: 'Error' },
+    ],
+    controlRows.map(row => [
+      row.command_id ?? '', row.command ?? '', row.target ?? '', row.args_json ?? '{}',
+      row.requested_by ?? '', Boolean(row.approved), row.status ?? 'DRAFT', row.created_at ?? '',
+      row.executed_at ?? '', row.result_json ?? '', row.error ?? '',
+    ]),
   ));
 
   return {
