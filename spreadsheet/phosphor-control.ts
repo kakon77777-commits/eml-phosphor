@@ -2,7 +2,7 @@
  * PHOSPHOR-SHEET control plane.
  *
  * Spreadsheet rows express command intent. They never call VM operations
- * directly. A host supplies an explicit handler map, and every decision can be
+ * directly. A host supplies an explicit handler map, and every decision is
  * emitted back to phosphor-stream for deterministic audit.
  */
 
@@ -39,7 +39,9 @@ export interface ValidatedControlCommand extends ControlRow {
 
 export interface ControlPolicy {
   allowed?: readonly ControlCommandName[];
+  allowedTargets?: readonly string[];
   requireApprovalForMutations?: boolean;
+  maxArgsBytes?: number;
 }
 
 export type ControlHandler = (command: ValidatedControlCommand) => unknown | Promise<unknown>;
@@ -48,6 +50,8 @@ export type ControlEmit = (type: string, fields: Record<string, unknown>) => voi
 
 const MUTATING = new Set<ControlCommandName>(['vm:run', 'vm:pause', 'vm:step', 'vm:reset', 'vm:call']);
 const TERMINAL = new Set<ControlStatus>(['EXECUTED', 'REJECTED', 'FAILED']);
+const READY = new Set<ControlStatus>(['QUEUED', 'APPROVED']);
+const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
 
 export const CONTROL_COLUMNS = [
   { key: 'command_id', label: 'Command ID' },
@@ -74,15 +78,19 @@ export function controlSheet(rows: ControlRow[] = [blankControlRow()]): SheetMod
   return {
     id: CONTROL_SHEET_ID,
     name: CONTROL_SHEET_NAME,
-    description: 'Validated command intent. Mutating commands require approval and host-provided handlers.',
+    description: 'Validated command intent. DRAFT rows are inert; mutating commands require approval and host-provided handlers.',
     columns: CONTROL_COLUMNS,
     rows: rows.map(row => CONTROL_COLUMNS.map(column => row[column.key as keyof ControlRow] as SheetCell)),
   };
 }
 
 export function withControlSheet(workbook: WorkbookModel, rows?: ControlRow[]): WorkbookModel {
-  const sheets = workbook.sheets.filter(sheet => sheet.id !== CONTROL_SHEET_ID);
+  const sheets = workbook.sheets.filter(sheet => sheet.id !== CONTROL_SHEET_ID && sheet.name !== CONTROL_SHEET_NAME);
   return { ...workbook, sheets: [...sheets, controlSheet(rows)] };
+}
+
+export function appendControlRow(workbook: WorkbookModel, row: ControlRow): WorkbookModel {
+  return withControlSheet(workbook, [...parseControlSheet(workbook), row]);
 }
 
 function rowObject(sheet: SheetModel, row: SheetCell[]): Record<string, SheetCell> {
@@ -122,20 +130,66 @@ export interface ValidationResult {
   command?: ValidatedControlCommand;
 }
 
+function integer(value: unknown, key: string, min: number, max: number, errors: string[]): void {
+  if (value === undefined) return;
+  if (!Number.isInteger(value) || Number(value) < min || Number(value) > max) {
+    errors.push(`${key} must be an integer in [${min},${max}]`);
+  }
+}
+
+function validateArgs(name: ControlCommandName, args: Record<string, unknown>, errors: string[]): void {
+  if (name === 'vm:step') integer(args.count, 'count', 1, 10_000, errors);
+  if (name === 'vm:run') {
+    integer(args.maxSteps, 'maxSteps', 1, 1_000_000, errors);
+    integer(args.max_steps, 'max_steps', 1, 1_000_000, errors);
+  }
+  if (name === 'vm:call') {
+    const fn = args.name ?? args.function;
+    if (typeof fn !== 'string' || !SAFE_ID.test(fn)) errors.push('vm:call requires a safe string name/function');
+    if (!Array.isArray(args.args)) errors.push('vm:call requires args as an array');
+    else {
+      if (args.args.length > 8) errors.push('vm:call supports at most 8 arguments');
+      args.args.forEach((value, index) => integer(value, `args[${index}]`, 0, 255, errors));
+    }
+  }
+  if (name === 'stream:replay') {
+    integer(args.from_seq, 'from_seq', 0, Number.MAX_SAFE_INTEGER, errors);
+    integer(args.to_seq, 'to_seq', 0, Number.MAX_SAFE_INTEGER, errors);
+  }
+  if (name === 'sheet:export') {
+    const format = args.format ?? 'xlsx';
+    if (!['xlsx', 'xml', 'csv'].includes(String(format))) errors.push('sheet:export format must be xlsx, xml, or csv');
+    if (args.sheet !== undefined && typeof args.sheet !== 'string') errors.push('sheet must be a string');
+  }
+}
+
 export function validateControlCommand(row: ControlRow, policy: ControlPolicy = {}): ValidationResult {
   const errors: string[] = [];
   const allowed = new Set(policy.allowed ?? CONTROL_COMMANDS);
   if (!row.command_id) errors.push('command_id is required');
+  else if (!SAFE_ID.test(row.command_id)) errors.push('command_id contains unsafe characters or is too long');
+  if (row.requested_by.length > 128) errors.push('requested_by is too long');
   if (!CONTROL_COMMANDS.includes(row.command as ControlCommandName)) errors.push(`unsupported command: ${row.command || '(blank)'}`);
   else if (!allowed.has(row.command as ControlCommandName)) errors.push(`command blocked by policy: ${row.command}`);
-  if (!row.target && row.command.startsWith('vm:')) errors.push('target is required for vm commands');
+  if (row.command.startsWith('vm:')) {
+    if (!row.target) errors.push('target is required for vm commands');
+    else if (!SAFE_ID.test(row.target)) errors.push('target contains unsafe characters or is too long');
+  }
+  if (policy.allowedTargets?.length && row.target && !policy.allowedTargets.includes(row.target)) {
+    errors.push(`target blocked by policy: ${row.target}`);
+  }
+  const maxArgsBytes = policy.maxArgsBytes ?? 65_536;
+  if (new TextEncoder().encode(row.args_json || '').length > maxArgsBytes) errors.push(`args_json exceeds ${maxArgsBytes} bytes`);
+
   let args: Record<string, unknown> = {};
   try {
     const parsed = JSON.parse(row.args_json || '{}');
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) errors.push('args_json must be a JSON object');
     else args = parsed as Record<string, unknown>;
   } catch { errors.push('args_json is not valid JSON'); }
+
   const name = row.command as ControlCommandName;
+  if (CONTROL_COMMANDS.includes(name)) validateArgs(name, args, errors);
   if ((policy.requireApprovalForMutations ?? true) && MUTATING.has(name) && !row.approved) {
     errors.push(`approval required for mutating command: ${name}`);
   }
@@ -159,6 +213,7 @@ export interface ControlExecutionResult {
   workbook: WorkbookModel;
   events: EventLike[];
   processed: number;
+  skipped: number;
 }
 
 export async function executeControlSheet(
@@ -173,6 +228,7 @@ export async function executeControlSheet(
   const events: EventLike[] = [];
   const output: ControlRow[] = [];
   let processed = 0;
+  let skipped = 0;
 
   const push = (type: string, row: ControlRow, fields: Record<string, unknown> = {}) => {
     const item = { ...event(type, row, fields), ts: now(), seq: events.length + 1, mono: events.length + 1 };
@@ -182,7 +238,11 @@ export async function executeControlSheet(
 
   for (const original of rows) {
     const row = { ...original };
-    if (!row.command || TERMINAL.has(row.status)) { output.push(row); continue; }
+    if (!row.command || TERMINAL.has(row.status) || !READY.has(row.status)) {
+      skipped++;
+      output.push(row);
+      continue;
+    }
     processed++;
     push('sheet:command_requested', row);
 
@@ -217,5 +277,5 @@ export async function executeControlSheet(
     output.push(row);
   }
 
-  return { workbook: withControlSheet(workbook, output), events, processed };
+  return { workbook: withControlSheet(workbook, output), events, processed, skipped };
 }

@@ -135,6 +135,19 @@ function estimatedWidth(model: SheetModel, column: number): number {
   return Math.max(8, Math.min(42, width + 2));
 }
 
+
+function controlValidations(model: SheetModel, maxRow: number): string {
+  if (model.id !== 'control' && model.name !== '09_Control') return '';
+  const commandList = '"vm:inspect,vm:run,vm:pause,vm:step,vm:reset,vm:call,stream:replay,sheet:export"';
+  const statusList = '"DRAFT,QUEUED,APPROVED,EXECUTED,REJECTED,FAILED"';
+  const end = Math.max(2, maxRow);
+  return `<dataValidations count="3">` +
+    `<dataValidation type="list" allowBlank="1" showErrorMessage="1" sqref="B2:B${end}"><formula1>${commandList}</formula1></dataValidation>` +
+    `<dataValidation type="list" allowBlank="1" showErrorMessage="1" sqref="F2:F${end}"><formula1>"TRUE,FALSE"</formula1></dataValidation>` +
+    `<dataValidation type="list" allowBlank="1" showErrorMessage="1" sqref="G2:G${end}"><formula1>${statusList}</formula1></dataValidation>` +
+    `</dataValidations>`;
+}
+
 function sheetXml(model: SheetModel): string {
   const maxCol = Math.max(1, model.columns.length);
   const maxRow = Math.max(1, model.rows.length + 1);
@@ -160,6 +173,7 @@ function sheetXml(model: SheetModel): string {
     `<sheetFormatPr defaultRowHeight="15"/>` +
     `<cols>${columns}</cols><sheetData>${header}${rows}</sheetData>` +
     `<autoFilter ref="A1:${columnName(maxCol - 1)}${maxRow}"/>` +
+    controlValidations(model, maxRow) +
     `</worksheet>`;
 }
 
