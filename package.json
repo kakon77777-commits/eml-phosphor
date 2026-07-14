@@ -12,6 +12,7 @@
     "verify:headless": "tsx test-headless.ts",
     "verify:eml": "tsx stream/test-eml-consumer.ts",
     "verify:semantic": "tsx test-semantic.ts",
+    "verify:sheet": "tsx spreadsheet/test-sheet.ts",
     "phosphor": "tsx headless-vm.ts",
     "scan": "tsx stream/scan.ts",
     "typecheck": "tsc --noEmit"
