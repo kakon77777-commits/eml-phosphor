@@ -219,7 +219,7 @@ export function workbookToXlsxBytes(workbook: WorkbookModel): Uint8Array {
 }
 
 export function workbookToXlsxBlob(workbook: WorkbookModel): Blob {
-  return new Blob([workbookToXlsxBytes(workbook)], {
+  return new Blob([workbookToXlsxBytes(workbook) as Uint8Array<ArrayBuffer>], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
 }
