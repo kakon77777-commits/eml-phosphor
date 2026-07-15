@@ -5,6 +5,7 @@ import EquivLab from './EquivLab.jsx';
 import CtsInspector from './CtsInspector.jsx';
 import EmlInterop from './EmlInterop.jsx';
 import AgentStream from './AgentStream.jsx';
+import SheetWorkbench from './SheetWorkbench.jsx';
 // binary-matrix lives in the parent folder; imported directly (no copy).
 import BinaryMatrix from '../../binary-matrix.jsx';
 import { C, VERSION, BrandFooter } from './theme.jsx';
@@ -16,6 +17,7 @@ const TABS = [
   { id: 'cts',    label: '▸ CTS',       el: <CtsInspector /> },
   { id: 'eml',    label: '▸ EML',       el: <EmlInterop /> },
   { id: 'agent',  label: '▸ AGENT',     el: <AgentStream /> },
+  { id: 'sheet',  label: '▸ SHEET',     el: <SheetWorkbench /> },
   { id: 'matrix', label: '▸ MATRIX',    el: <BinaryMatrix /> },
 ];
 

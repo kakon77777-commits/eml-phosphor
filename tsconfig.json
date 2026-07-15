@@ -12,6 +12,6 @@
     "allowImportingTsExtensions": true,
     "jsx": "react-jsx"
   },
-  "include": ["*.ts", "stream/*.ts"],
+  "include": ["*.ts", "stream/*.ts", "spreadsheet/*.ts"],
   "exclude": ["node_modules"]
 }
