@@ -127,7 +127,7 @@ function flag(s: SnapshotLike, key: 'Z' | 'N' | 'G'): boolean {
 }
 
 export function snapshotsFromEvents(events: EventLike[]): SnapshotLike[] {
-  return events
+  const mapped = events
     .filter(e => e.type === 'vm:tick' || e.type === 'vm:halt')
     .map(e => ({
       mode: typeof e.mode === 'string' ? e.mode : 'ai',
@@ -144,6 +144,10 @@ export function snapshotsFromEvents(events: EventLike[]): SnapshotLike[] {
       changed: Array.isArray(e.changed) ? e.changed as ChangeLike[] : [],
       halted: Boolean(e.halted || e.type === 'vm:halt'),
     }));
+  // A halting tick emits both vm:tick and vm:halt for the same tick number
+  // (see headless-driver.ts) — collapse the resulting adjacent duplicate so
+  // the ledger/register/memory sheets don't double-count the final tick.
+  return mapped.filter((snap, index) => index === 0 || snap.tick !== mapped[index - 1].tick);
 }
 
 export function orderEvents(events: EventLike[]): EventLike[] {
@@ -158,6 +162,7 @@ export function orderEvents(events: EventLike[]): EventLike[] {
 
 export function isAnomaly(e: EventLike): boolean {
   if (typeof e.type === 'string' && /:error$/.test(e.type)) return true;
+  if (e.type === 'sheet:command_failed' || e.type === 'sheet:command_rejected') return true;
   if (e.ok === false) return true;
   if ('expected' in e && 'actual' in e && json(e.expected) !== json(e.actual)) return true;
   for (const key of ['code', 'exitCode', 'status']) {

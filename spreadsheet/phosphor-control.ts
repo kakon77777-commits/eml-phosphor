@@ -67,6 +67,24 @@ export const CONTROL_COLUMNS = [
   { key: 'error', label: 'Error' },
 ];
 
+/**
+ * Reject a 09_Control sheet whose header row doesn't match CONTROL_COLUMNS
+ * position-for-position. The XLSX readers map data cells by column index, so
+ * a column inserted/reordered/removed in Excel would otherwise silently
+ * shift every field one slot — fail loud instead of guessing.
+ */
+export function assertControlHeader(header: SheetCell[]): void {
+  CONTROL_COLUMNS.forEach((expected, index) => {
+    const actual = String(header[index] ?? '').trim();
+    if (actual !== expected.label) {
+      throw new Error(
+        `Unsupported 09_Control layout: column ${index + 1} is "${actual || '(empty)'}", expected "${expected.label}". `
+        + 'Columns must not be inserted, removed, or reordered before re-importing.',
+      );
+    }
+  });
+}
+
 export function blankControlRow(id = 'cmd-001'): ControlRow {
   return {
     command_id: id, command: '', target: '', args_json: '{}', requested_by: '',
@@ -224,7 +242,11 @@ export async function executeControlSheet(
   now: () => string = () => new Date().toISOString(),
 ): Promise<ControlExecutionResult> {
   const rows = parseControlSheet(workbook);
-  const seen = new Set<string>();
+  // Seed with ids already at a terminal status anywhere in the sheet, not just
+  // ones this run processes — otherwise a QUEUED/APPROVED row re-using a
+  // previously EXECUTED/REJECTED/FAILED command_id would re-execute instead
+  // of being rejected as a duplicate.
+  const seen = new Set<string>(rows.filter(row => TERMINAL.has(row.status)).map(row => row.command_id));
   const events: EventLike[] = [];
   const output: ControlRow[] = [];
   let processed = 0;

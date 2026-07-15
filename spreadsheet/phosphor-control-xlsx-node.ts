@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { inflateRawSync } from 'node:zlib';
 import type { SheetCell, SheetModel, WorkbookModel } from './phosphor-sheet.ts';
-import { CONTROL_COLUMNS, CONTROL_SHEET_ID, CONTROL_SHEET_NAME, parseControlSheet } from './phosphor-control.ts';
+import { assertControlHeader, CONTROL_COLUMNS, CONTROL_SHEET_ID, CONTROL_SHEET_NAME, parseControlSheet } from './phosphor-control.ts';
 
 function u16(bytes: Uint8Array, offset: number): number {
   return bytes[offset] | (bytes[offset + 1] << 8);
@@ -122,6 +122,7 @@ export function controlWorkbookFromXlsxBytes(bytes: Uint8Array): WorkbookModel {
   const files = unzip(bytes);
   const rows = readSheet(files, CONTROL_SHEET_NAME);
   const header = rows.shift() ?? [];
+  assertControlHeader(header);
   const columns = header.map((label, index) => ({
     key: CONTROL_COLUMNS[index]?.key ?? String(label || `column_${index + 1}`),
     label: String(label || CONTROL_COLUMNS[index]?.label || ''),

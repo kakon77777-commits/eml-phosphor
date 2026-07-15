@@ -139,6 +139,7 @@ export default function SheetWorkbench() {
   const [draft, setDraft] = useState({ command: 'vm:inspect', target: VM_ID, args: '{}', requestedBy: 'human', approved: false });
   const sessionRef = useRef(null);
   const importRef = useRef(null);
+  const commandSeqRef = useRef(0);
 
   const active = useMemo(
     () => workbook?.sheets.find(s => s.id === sheetId) ?? workbook?.sheets[0] ?? null,
@@ -181,7 +182,7 @@ export default function SheetWorkbench() {
     if (!workbook) return;
     const now = new Date().toISOString();
     const row = {
-      command_id: `cmd-${Date.now().toString(36)}-${controls.length + 1}`,
+      command_id: `cmd-${Date.now().toString(36)}-${++commandSeqRef.current}`,
       command: draft.command,
       target: draft.target,
       args_json: draft.args || '{}',
@@ -297,7 +298,7 @@ export default function SheetWorkbench() {
           <input value={draft.args} onChange={e => setDraft({ ...draft, args: e.target.value })} placeholder="Args JSON" style={{ ...input, width: '250px' }} />
           <input value={draft.requestedBy} onChange={e => setDraft({ ...draft, requestedBy: e.target.value })} placeholder="requested by" style={{ ...input, width: '92px' }} />
           <label style={{ color: C.sem, fontSize: '9px' }}><input type="checkbox" checked={draft.approved} onChange={e => setDraft({ ...draft, approved: e.target.checked })} /> approved</label>
-          <button onClick={addCommand} style={exportBtn}>＋ ADD COMMAND</button>
+          <button onClick={addCommand} disabled={busy} style={exportBtn}>＋ ADD COMMAND</button>
           <button onClick={executePending} disabled={busy} style={action}>▶ EXECUTE READY</button>
         </div>
       </div>}

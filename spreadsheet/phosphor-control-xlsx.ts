@@ -7,7 +7,7 @@
 
 import type { SheetCell, SheetModel, WorkbookModel } from './phosphor-sheet.ts';
 import {
-  CONTROL_COLUMNS, CONTROL_SHEET_ID, CONTROL_SHEET_NAME, parseControlSheet,
+  assertControlHeader, CONTROL_COLUMNS, CONTROL_SHEET_ID, CONTROL_SHEET_NAME, parseControlSheet,
   type ControlRow,
 } from './phosphor-control.ts';
 
@@ -138,6 +138,7 @@ export async function controlWorkbookFromXlsxBytes(bytes: Uint8Array): Promise<W
   const files = await unzip(bytes);
   const rows = readSheet(files, CONTROL_SHEET_NAME);
   const header = rows.shift() ?? [];
+  assertControlHeader(header);
   const columns = header.map((label, index) => ({
     key: CONTROL_COLUMNS[index]?.key ?? String(label || `column_${index + 1}`),
     label: String(label || CONTROL_COLUMNS[index]?.label || ''),
