@@ -14,7 +14,8 @@ const Playground = lazy(() => import('@phosphor/ui/src/App.jsx'));
 
 const t = {
   en: {
-    nav: { thesis: 'Thesis', vms: 'VM Family', semantic: 'Semantic', play: 'Playground', open: 'Open Source' },
+    nav: { thesis: 'Thesis', vms: 'VM Family', semantic: 'Semantic', play: 'Playground', open: 'Open Source', mccp: 'MCCP' },
+    mccpWip: 'WIP',
     tag: 'Execution-as-Interface',
     h1a: 'Visible', h1b: 'Visualizable',
     lead: "A VM's execution, paired with a complete Correspondence Table System, is at once a human-readable visualization and an AI-parseable event stream — not two representations of one object, but the same object viewed two ways.",
@@ -44,7 +45,8 @@ const t = {
       st1: 'checks green', st2: 'adversary agents', st3: 'verify harnesses' },
   },
   zh: {
-    nav: { thesis: '命題', vms: 'VM 家族', semantic: '語意層', play: '互動場', open: '開源' },
+    nav: { thesis: '命題', vms: 'VM 家族', semantic: '語意層', play: '互動場', open: '開源', mccp: 'MCCP' },
+    mccpWip: '開發中',
     tag: '執行即介面',
     h1a: '可見', h1b: '可視',
     lead: '一個 VM 的實際執行，配上完整的對應表系統（CTS），同時就是人類可讀的視覺化、與 AI 可解析的事件流——不是同一物件的兩種表示，而是同一物件的兩種觀看方式。',
@@ -155,6 +157,10 @@ export default function App() {
             <a className="hover:text-[var(--color-phosphor)] transition-colors" href="#semantic">{L.nav.semantic}</a>
             <a className="hover:text-[var(--color-mint)] transition-colors" href="#playground">{L.nav.play}</a>
             <a className="hover:text-[var(--color-phosphor)] transition-colors" href="#open">{L.nav.open}</a>
+            <a className="inline-flex items-center gap-1.5 text-[var(--color-amber)] hover:text-[var(--color-mint)] transition-colors" href="/mccp/">
+              {L.nav.mccp}
+              <span className="text-[9px] border border-[var(--color-amber)] rounded-sm px-1 py-0.5 leading-none">{L.mccpWip}</span>
+            </a>
           </nav>
           <button onClick={() => setLang(l => (l === 'en' ? 'zh' : 'en'))}
             className="font-mono text-xs border border-[var(--color-line)] rounded-sm px-2 py-1 text-[var(--color-fg)] hover:border-[var(--color-phosphor)] cursor-pointer transition-colors md:ml-0 ml-auto"
