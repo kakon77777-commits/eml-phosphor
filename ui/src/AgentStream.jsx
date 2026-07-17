@@ -3,7 +3,7 @@ import { createHeadlessVM } from '../../headless-driver';
 import { createEmitter, memorySink, findAnomalies } from '../../stream/phosphor-stream';
 import { PROGRAM_FIBONACCI, PROGRAM_COUNTER, PROGRAM_XOR_CIPHER } from '../../eml-vm16-core';
 import { createCallableVM, PROGRAM_FUNCTIONS } from '../../eml-vm16-callable';
-import { C, panelHead, Screen, TabTitle } from './theme.jsx';
+import { C, panelHead, Screen, TabTitle, alpha } from './theme.jsx';
 
 const PROGRAMS = { fibonacci: PROGRAM_FIBONACCI, counter: PROGRAM_COUNTER, xor: PROGRAM_XOR_CIPHER };
 const FUNCS = ['add', 'xor_byte', 'sum_range', 'fib_n'];
@@ -115,7 +115,7 @@ export default function AgentStream() {
           </div>
           {callOut && (
             <div style={{
-              border: `1px solid ${C.sem}55`, borderRadius: '2px', padding: '8px 11px',
+              border: `1px solid ${alpha(C.sem, 33)}`, borderRadius: '2px', padding: '8px 11px',
               fontSize: '12px', color: C.fg,
             }}>
               <span style={{ color: C.sem }}>{callOut.fn}</span>({callOut.args.join(', ')}) ={' '}

@@ -15,6 +15,7 @@ import {
 import { buildHeadlessSnapshot } from '../../headless-snapshot';
 // v0.5 semantic layer: the operational meaning of the instruction at PC.
 import { describeEffect } from '../../eml-semantic';
+import { C as SHARED_C, alpha, darken } from './theme.jsx';
 
 // ─── Program registry ────────────────────────────────────────────────────────
 const PROGRAMS = {
@@ -33,15 +34,17 @@ const SPEEDS = {
   TURBO: { ms: 40,  n: 6 },
 };
 
+// Extends the shared theme tokens with this grid's own composite cell states
+// (PC cell / PC-arg cell / SP cell / write-flash), derived from the shared
+// accents so they stay theme-reactive instead of being pinned to phosphor-green.
 const C = {
-  bg: '#040c04', fg: '#1aee44', bright: '#00ff41', dim: '#0a1c0a',
-  pc: '#00ff41', pcBg: 'rgba(0,255,65,0.15)', pcGlow: '0 0 8px rgba(0,255,65,0.7)',
-  pcArg: '#00bb2e', pcArgBg: 'rgba(0,187,46,0.07)',
-  sp: '#ff6600', spBg: 'rgba(255,102,0,0.12)', spGlow: '0 0 5px rgba(255,102,0,0.5)',
+  ...SHARED_C,
+  pc: SHARED_C.bright, pcBg: alpha(SHARED_C.bright, 15), pcGlow: `0 0 8px ${alpha(SHARED_C.bright, 70)}`,
+  pcArg: darken(SHARED_C.bright, 70), pcArgBg: alpha(SHARED_C.bright, 7),
+  sp: SHARED_C.sp, spBg: alpha(SHARED_C.sp, 12), spGlow: `0 0 5px ${alpha(SHARED_C.sp, 50)}`,
+  // the "just written" flash is intentionally palette-invariant — a stark white
+  // cue reads clearly against every theme, dark or light, unlike a colored one.
   flash: '#ffffff', flashBg: 'rgba(255,255,255,0.13)', flashGlow: '0 0 8px rgba(255,255,255,0.6)',
-  amber: '#ffaa00', border: '#0a1c0a', muted: '#0a2a0a',
-  ai: '#00d2ff', aiDim: '#0a2230',   // AI-mode accent (cyan) — distinct from the human green
-  sem: '#5af0c8', semDim: '#13312a', // v0.5 semantic-layer accent (phosphor mint)
 };
 
 // Render a SemSlot (register / memory cell) for the semantics overlay.
@@ -176,9 +179,9 @@ export default function PhosphorVM() {
     }}>
       {/* CRT overlays */}
       <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 20,
-        background: 'repeating-linear-gradient(to bottom,transparent 0,transparent 1px,rgba(0,0,0,0.1) 1px,rgba(0,0,0,0.1) 2px)' }} />
+        background: 'repeating-linear-gradient(to bottom,transparent 0,transparent 1px,rgba(0,0,0,var(--p-scan-alpha)) 1px,rgba(0,0,0,var(--p-scan-alpha)) 2px)' }} />
       <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 19,
-        background: 'radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(0,0,0,0.45) 100%)' }} />
+        background: 'radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(0,0,0,var(--p-vignette-alpha)) 100%)' }} />
 
       {/* Header */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', marginBottom: '10px', position: 'relative', zIndex: 1 }}>

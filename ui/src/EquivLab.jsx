@@ -4,15 +4,7 @@ import { semanticEquiv, describeEffect } from '../../eml-semantic';
 import { decode, hex2 as h } from '../../eml-vm16-core';
 // Self-validating trace: the judge emits a vm:equiv event we surface verbatim.
 import { createEmitter, memorySink } from '../../stream/phosphor-stream';
-
-const C = {
-  bg: '#040c04', fg: '#1aee44', bright: '#00ff41', dim: '#0a1c0a', muted: '#0a2a0a',
-  sem: '#5af0c8', semDim: '#13312a',
-  ok: '#00ff41', okBg: 'rgba(0,255,65,0.10)',
-  no: '#ff5a5a', noBg: 'rgba(255,90,90,0.09)',
-  inx: '#ffaa00', inxBg: 'rgba(255,170,0,0.09)',
-  ai: '#00d2ff', aiDim: '#0a2230',
-};
+import { C, Screen, panelHead as head, parseBytes, alpha } from './theme.jsx';
 
 // A · B byte sequences (arg = [dst:4|src:4]). Each preset tells one v0.5 story.
 const PRESETS = [
@@ -31,14 +23,6 @@ const inp = {
   fontFamily: '"Courier New",monospace', fontSize: '10px', padding: '2px 4px', textAlign: 'center',
 };
 
-function parseBytes(text) {
-  return text
-    .split(/[\s,]+/).map(t => t.trim()).filter(Boolean)
-    .map(t => parseInt(t.replace(/^0x/i, ''), 16))
-    .filter(n => Number.isFinite(n))
-    .map(n => n & 0xFF);
-}
-
 // Fixed 2-byte ISA → walk pairs, decode + attach operational meaning.
 function disassemble(bytes) {
   const rows = [];
@@ -48,11 +32,6 @@ function disassemble(bytes) {
   }
   return rows;
 }
-
-const head = {
-  color: C.muted, fontSize: '8.5px', letterSpacing: '1px',
-  borderBottom: `1px solid ${C.dim}`, paddingBottom: '2px', marginBottom: '6px',
-};
 
 function Editor({ label, value, onChange, accent }) {
   const dis = disassemble(parseBytes(value));
@@ -121,20 +100,10 @@ export default function EquivLab() {
   );
 
   return (
-    <div style={{
-      background: C.bg, minHeight: 'calc(100vh - 34px)', color: C.fg,
-      fontFamily: '"Courier New",Courier,monospace', padding: '12px 14px', position: 'relative', overflowX: 'auto',
-    }}>
-      {/* CRT overlays */}
-      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 20,
-        background: 'repeating-linear-gradient(to bottom,transparent 0,transparent 1px,rgba(0,0,0,0.1) 1px,rgba(0,0,0,0.1) 2px)' }} />
-      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 19,
-        background: 'radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(0,0,0,0.45) 100%)' }} />
-
-      <div style={{ position: 'relative', zIndex: 1 }}>
+    <Screen>
         {/* Title + thesis */}
         <div style={{ marginBottom: '10px' }}>
-          <span style={{ color: C.sem, fontSize: '13px', letterSpacing: '2px', textShadow: '0 0 10px rgba(90,240,200,0.5)' }}>
+          <span style={{ color: C.sem, fontSize: '13px', letterSpacing: '2px', textShadow: `0 0 10px ${alpha(C.sem, 50)}` }}>
             ▸ SEMANTIC EQUIVALENCE
           </span>
           <span style={{ color: '#163a30', fontSize: '9px', marginLeft: '10px', letterSpacing: '0.5px' }}>
@@ -197,7 +166,7 @@ export default function EquivLab() {
                 border: `1px solid ${verdictStyle.c}`, background: verdictStyle.bg, borderRadius: '3px',
                 padding: '10px 12px', marginBottom: '10px',
               }}>
-                <div style={{ color: verdictStyle.c, fontSize: '15px', letterSpacing: '1.5px', textShadow: `0 0 8px ${verdictStyle.c}66` }}>
+                <div style={{ color: verdictStyle.c, fontSize: '15px', letterSpacing: '1.5px', textShadow: `0 0 8px ${alpha(verdictStyle.c, 40)}` }}>
                   {verdictStyle.label}
                 </div>
                 <div style={{ fontSize: '9.5px', color: '#4a8a6a', marginTop: '5px', lineHeight: '1.5' }}>
@@ -247,7 +216,6 @@ export default function EquivLab() {
             — load a preset or paste two byte sequences, then press JUDGE —
           </div>
         )}
-      </div>
-    </div>
+    </Screen>
   );
 }
