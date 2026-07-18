@@ -2,6 +2,7 @@ import { useState } from 'react';
 import PhosphorVM from './PhosphorVM.jsx';
 import VM64View from './VM64View.jsx';
 import WasmView from './WasmView.jsx';
+import FlagshipView from './FlagshipView.jsx';
 import PetZone from './PetZone.jsx';
 import EquivLab from './EquivLab.jsx';
 import CtsInspector from './CtsInspector.jsx';
@@ -16,6 +17,7 @@ const TABS = [
   { id: 'vm',     label: '▸ EML-VM-16', el: <PhosphorVM /> },
   { id: 'vm64',   label: '▸ EML-VM-64', el: <VM64View /> },
   { id: 'wasm',   label: '▸ WASM',      el: <WasmView /> },
+  { id: 'flagship', label: '▸ FLAGSHIP', el: <FlagshipView /> },
   { id: 'equiv',  label: '▸ SEMANTIC ≡', el: <EquivLab /> },
   { id: 'cts',    label: '▸ CTS',       el: <CtsInspector /> },
   { id: 'eml',    label: '▸ EML',       el: <EmlInterop /> },

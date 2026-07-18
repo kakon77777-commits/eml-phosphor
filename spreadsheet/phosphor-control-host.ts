@@ -19,6 +19,7 @@ export interface SheetControlHost {
   call?(target: string, name: string, args: number[]): unknown | Promise<unknown>;
   replay?(args: Record<string, unknown>): unknown | Promise<unknown>;
   exportSheet?(format: 'xlsx' | 'xml' | 'csv', sheet?: string): unknown | Promise<unknown>;
+  applyOptimization?(target: string, variant: string): unknown | Promise<unknown>;
 }
 
 function intArg(command: ValidatedControlCommand, key: string, fallback: number): number {
@@ -45,6 +46,10 @@ export function controlHandlersFromHost(host: SheetControlHost): ControlHandlers
   if (host.exportSheet) handlers['sheet:export'] = command => host.exportSheet!(
     (command.args.format as 'xlsx' | 'xml' | 'csv' | undefined) ?? 'xlsx',
     typeof command.args.sheet === 'string' ? command.args.sheet : undefined,
+  );
+  if (host.applyOptimization) handlers['wasm:apply_optimization'] = command => host.applyOptimization!(
+    command.target,
+    String(command.args.variant ?? ''),
   );
   return handlers;
 }

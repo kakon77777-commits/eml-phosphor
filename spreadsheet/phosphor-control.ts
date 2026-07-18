@@ -13,7 +13,7 @@ export const CONTROL_SHEET_NAME = '09_Control';
 
 export const CONTROL_COMMANDS = [
   'vm:inspect', 'vm:run', 'vm:pause', 'vm:step', 'vm:reset', 'vm:call',
-  'stream:replay', 'sheet:export',
+  'stream:replay', 'sheet:export', 'wasm:apply_optimization',
 ] as const;
 export type ControlCommandName = typeof CONTROL_COMMANDS[number];
 export type ControlStatus = 'DRAFT' | 'QUEUED' | 'APPROVED' | 'EXECUTED' | 'REJECTED' | 'FAILED';
@@ -48,7 +48,7 @@ export type ControlHandler = (command: ValidatedControlCommand) => unknown | Pro
 export type ControlHandlers = Partial<Record<ControlCommandName, ControlHandler>>;
 export type ControlEmit = (type: string, fields: Record<string, unknown>) => void;
 
-const MUTATING = new Set<ControlCommandName>(['vm:run', 'vm:pause', 'vm:step', 'vm:reset', 'vm:call']);
+const MUTATING = new Set<ControlCommandName>(['vm:run', 'vm:pause', 'vm:step', 'vm:reset', 'vm:call', 'wasm:apply_optimization']);
 const TERMINAL = new Set<ControlStatus>(['EXECUTED', 'REJECTED', 'FAILED']);
 const READY = new Set<ControlStatus>(['QUEUED', 'APPROVED']);
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
@@ -178,6 +178,16 @@ function validateArgs(name: ControlCommandName, args: Record<string, unknown>, e
     const format = args.format ?? 'xlsx';
     if (!['xlsx', 'xml', 'csv'].includes(String(format))) errors.push('sheet:export format must be xlsx, xml, or csv');
     if (args.sheet !== undefined && typeof args.sheet !== 'string') errors.push('sheet must be a string');
+  }
+  if (name === 'wasm:apply_optimization') {
+    if (typeof args.variant !== 'string' || !SAFE_ID.test(args.variant)) errors.push('wasm:apply_optimization requires a safe string variant');
+    // Hard gate, not just an approval formality: a proposal the equivalence
+    // judge did NOT certify 'equivalent' is refused regardless of the
+    // Approved column — human sign-off is for the discretionary "do we want
+    // this (proven-safe) change", not a way to override a failed proof.
+    if (args.verdict !== 'equivalent') {
+      errors.push(`wasm:apply_optimization refuses a proposal the equivalence judge did not certify (verdict: ${args.verdict ?? '(missing)'})`);
+    }
   }
 }
 

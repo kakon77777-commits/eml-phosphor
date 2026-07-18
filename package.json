@@ -1,7 +1,7 @@
 {
   "name": "phosphor",
-  "version": "0.6.0-beta.0",
-  "description": "PHOSPHOR — Execution-as-Interface (EAI) machine-code visualization infrastructure. EML-EAI-2026. v0.6 is an EXPERIMENTAL/beta release.",
+  "version": "0.7.0-beta.0",
+  "description": "PHOSPHOR — Execution-as-Interface (EAI) machine-code visualization infrastructure. EML-EAI-2026. v0.7 is an EXPERIMENTAL/beta release.",
   "type": "module",
   "author": "Neo.K (許筌崴) · EveMissLab (一言諾科技有限公司)",
   "license": "Apache-2.0",
@@ -17,7 +17,8 @@
     "scan": "tsx stream/scan.ts",
     "typecheck": "tsc --noEmit",
     "verify:sheet-control": "tsx spreadsheet/test-sheet-control.ts",
-    "verify:wasm": "tsx test-wasm.ts"
+    "verify:wasm": "tsx test-wasm.ts",
+    "verify:wasm-semantic": "tsx test-wasm-semantic.ts"
   },
   "dependencies": {
     "ws": "^8.18.0"

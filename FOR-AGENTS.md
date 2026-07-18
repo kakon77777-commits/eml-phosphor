@@ -6,7 +6,7 @@
 > **`phosphor-jsonl-v1` execution stream** plus the **Correspondence Table System
 > (CTS)** and the machine-readable layer under `/ai/`.
 
-PHOSPHOR · Execution-as-Interface (EAI) · `Φ : M × CTS → V` · v0.6.0-beta (EXPERIMENTAL) · Apache-2.0
+PHOSPHOR · Execution-as-Interface (EAI) · `Φ : M × CTS → V` · v0.7.0-beta (EXPERIMENTAL) · Apache-2.0
 EVEMISS TECHNOLOGY CO., LTD. (一言諾科技有限公司) · author 許筌崴 Neo.K
 Site: https://emlphosphor.com/ · Repo: https://github.com/kakon77777-commits/eml-phosphor
 
@@ -34,9 +34,10 @@ npm install
 npm run verify          # core integration (36 checks)
 npm run verify:semantic # v0.5 operational equivalence judge (26)
 npm run verify:wasm     # v0.6 real WebAssembly Φ target, cross-checked against Node's native engine (24)
+npm run verify:wasm-semantic # v0.7 Phase 2 flagship flow — real-rustc equivalence judge + governed execution (17)
 # full suite: verify + verify:ws + verify:stream + verify:headless + verify:eml
 #           + verify:semantic + verify:sheet + verify:sheet-control + verify:wasm
-#           = 236 checks across 9 harnesses
+#           + verify:wasm-semantic = 253 checks across 10 harnesses
 npm run typecheck       # tsc --noEmit, zero errors
 
 # Run a program headless and read the agent-facing stream:

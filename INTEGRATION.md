@@ -252,6 +252,54 @@ v0.6 是 WORKPLAN.md Phase 1 的落地：把 Φ:M×CTS→V 接到一個**真實*
 
 ---
 
+## 6.8 v0.7 新增：Phase 2 旗艦案例——三個投影第一次串成一個真實故事
+
+WORKPLAN.md Phase 2 落地：Human CRT / AI stream / Sheet 三個投影不再各自獨立
+demo，而是圍繞同一個真實情境運作。情境：AI 對一段**真實 rustc 編譯**的 WASM
+程式提「優化」（inline `add()`），`wasmSemanticEquiv` 判斷等價與否，結果進
+PHOSPHOR-SHEET `09_Control` 給人核准，核准後才真的切換執行版本，全程留下
+`phosphor-jsonl-v1` 稽核軌跡。
+
+- **`wasm/wasm-semantic.ts`**：`semanticEquiv`（`eml-semantic.ts`）同一套紀律
+  移植到 WASM——對抗式輸入、≥2-distinct-output 守則、三值判決。誠實的範圍收斂
+  （寫在檔案開頭註解）：VM-16 的 u8 定義域（0–255）本身就是完整值域，`exhaustive`
+  在那邊是「對所有輸入的真證明」；WASM i32 參數的值域（2^32）不可能窮舉，這裡
+  `exhaustive` 明講只代表「呼叫端宣告的有界定義域被完整覆蓋」，不是同一個詞的
+  無界版本，避免用同一個字含糊帶過不同強度的宣稱。另一項真實調整：兩個行為等價
+  的 WASM 二進位，linker 給的記憶體位址可以合法不同——判定器對兩邊程式各自呼叫
+  `outputPtrExport` 找自己的位址，不假設共用一個固定位址。
+- **`wasm/rust-fixtures/`**：三個**真正用 `rustc --target wasm32-unknown-unknown -O`
+  編譯**出來的 `.wasm`（非手刻）：`baseline.rs`（`add()` 保留真的 call）、
+  `optimized-correct.rs`（inline `add()`，行為相同）、`optimized-buggy.rs`
+  （同樣 inline，但迴圈邊界從 `i <= n` 被「簡化」成 `i < n`，off-by-one 漏掉
+  最後一個 fib 值）。過程中的真實發現：rustc `-O` 會把相鄰兩個 i32 store
+  合併成一個 i64 store（超出 WASM-MVP 不支援 i64 的範圍）——改用
+  `core::ptr::write_volatile` 禁止這個合併，不是放寬 profile 遷就，紀律與
+  v0.6 一致（見 `build.sh` 註解）。baseline 逐位元組核對 Node 原生引擎（真實
+  `block`+`loop` 巢狀，比 v0.6 手刻的 fixture 更貼近真實世界）。
+- **`wasm/wasm-sheet-bridge.ts`**：把等價判定結果包成 `09_Control` 列，**在人看到
+  之前**就把 verdict 寫進 `args_json`——核准不是憑空的信任，是看得到證據的決定。
+- **`spreadsheet/phosphor-control.ts`**：新增 `wasm:apply_optimization` 指令，
+  **硬性拒絕**任何 verdict 不是 `equivalent` 的提案，**不論 Approved 欄位為何**——
+  人的核准是「要不要採用這個已證明安全的優化」的裁量權，不是拿來覆蓋一個沒通過
+  驗證的提案。`spreadsheet/phosphor-control-host.ts` 加對應 `applyOptimization`
+  host 能力。
+- **`ui/src/FlagshipView.jsx`**（▸ FLAGSHIP 分頁）：三個投影真的畫在同一個畫面——
+  左邊 Human CRT 顯示「目前實際在跑」的版本、中間 AI stream 顯示即時稽核事件、
+  右邊 Sheet 控制格顯示待核准列。瀏覽器實測：提兩案（safe + buggy）、兩個都核准
+  （模擬人看漏了）、按執行——safe 版 EXECUTED 且左邊 Human CRT 真的切換成
+  optimized-correct（halt tick 248→212，inline 少一次 call/return，數字上也對得
+  起來）；buggy 版 REJECTED，錯誤訊息點名「judge 沒有 certify」，即使核准欄勾了
+  也沒被執行。過程中修了一個真的 bug：兩個提案在同一個 tick 內連續觸發時，
+  `setWorkbook(f(workbook))` 讀到同一份 stale closure，後者會蓋掉前者——改用
+  functional setState 修正。
+
+**驗證**（`npm run verify:wasm-semantic` → **17 passed**）：headless 重現瀏覽器裡
+驗證過的同一條路徑（判定 → 包裝成列 → 治理執行 → 稽核）。全套九個驗證套件 +
+新增這個 = **253 checks**，`typecheck` 零錯誤，無回歸。
+
+---
+
 ## 7. 剩餘未來工作
 
 §6.3 六步與 §6.4 五項整合點皆已處理。後續延伸（皆非缺口）：
@@ -262,7 +310,5 @@ v0.6 是 WORKPLAN.md Phase 1 的落地：把 Φ:M×CTS→V 接到一個**真實*
 - **前端擴充**：`ui/` 目前呈現單一 V1 VM；可再加 VM64 視窗、多視窗 pipeline、
   以及透過 WS 連後端的 agent 監控視圖。
 - **SSE 部署驗證**：WS 已端到端驗證；SSE 轉接器已實作但未加網路測試。
-- **WASM 尚無 UI / Sheet 投影**：`wasm/` 目前只有 headless 直譯器 + 驗證套件，
-  Human CRT（`ui/`）跟 PHOSPHOR-SHEET 都還沒接 WASM 狀態——這是刻意的：先把 Φ
-  跑在真實語意上證明成立，再串端到端旗艦案例（三個投影合一），細節見
-  `WORKPLAN.md` Phase 2。
+- **Phase 3（通用改造 Skill）尚未開工**：CTS 角色化 + 難度分級 + Claude Skill，
+  細節見 `WORKPLAN.md`。

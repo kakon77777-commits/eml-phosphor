@@ -5,15 +5,19 @@
 > 可見即可視 · **Visible ≡ Visualizable**
 
 > [!WARNING]
-> **v0.6.0-beta — EXPERIMENTAL / test release.** v0.6 adds Φ's first non-invented
-> target — real WebAssembly bytecode ([`wasm/`](wasm/)) — and PHOSPHOR-SHEET, a
-> third formal projection (spreadsheet). The WASM path is headless-only so far: no
-> `ui/` or PHOSPHOR-SHEET wiring yet, and only an i32/structured-control-flow
-> subset is supported (real modules outside that subset fail loudly rather than
-> mis-execute — see [`wasm/wasm-binary.ts`](wasm/wasm-binary.ts)). An end-to-end
-> case stringing all three projections together on one real scenario is still
-> ahead. The verified v0.5 core (VM family, semantic layer, EML interop,
-> single-source snapshot) is unchanged and stays green.
+> **v0.7.0-beta — EXPERIMENTAL / test release.** v0.7 is the Phase 2 flagship
+> case: an AI proposes an optimization to a **real `rustc`-compiled** WASM
+> program ([`wasm/rust-fixtures/`](wasm/rust-fixtures/)), [`wasm/wasm-semantic.ts`](wasm/wasm-semantic.ts)
+> judges it, PHOSPHOR-SHEET's governed `09_Control` plane executes only what
+> was certified — a human approving a not-equivalent proposal by mistake does
+> not matter, the hard gate refuses it regardless. All three projections
+> (Human CRT / AI stream / Sheet) act on this one story at once in
+> [`ui/src/FlagshipView.jsx`](ui/src/FlagshipView.jsx) (▸ FLAGSHIP tab). Only
+> an i32/structured-control-flow WASM subset is supported (real modules
+> outside that subset fail loudly rather than mis-execute — see
+> [`wasm/wasm-binary.ts`](wasm/wasm-binary.ts)). The verified v0.6 core (WASM
+> interpreter, VM family, semantic layer, EML interop) is unchanged and stays
+> green.
 
 PHOSPHOR is a small, dependency-light infrastructure built on one claim: a VM's actual execution, once paired with a complete **Correspondence Table System (CTS)**, is simultaneously a human-readable visualization *and* an AI-parseable event stream — not two representations of one object, but the *same* object viewed two ways.
 
@@ -53,6 +57,7 @@ npm run verify:semantic # v0.5 semantic layer — operational equivalence judge 
 npm run verify:sheet    # v1.1 PHOSPHOR-SHEET workbook + real XLSX (29)
 npm run verify:sheet-control # v1.2 interactive control-plane round trip (32)
 npm run verify:wasm     # v0.6 real WebAssembly Φ target, cross-checked against Node's native engine (24)
+npm run verify:wasm-semantic # v0.7 Phase 2 flagship flow — real-rustc equivalence judge + governed execution (17)
 npm run typecheck       # tsc --noEmit, zero errors
 ```
 
@@ -91,7 +96,7 @@ A self-contained double-click binary (no Node required) can be built with `node 
 | `eml-cts-interop.ts` | **v0.5** — bridge EML's source-level `Cts` into PHOSPHOR-side views (dictionary / attention / loops) ([contract](CTS-INTEROP.md)) |
 | `stream/` | **phosphor-stream** — a portable "state → AI-readable event stream" standard ([spec](stream/PHOSPHOR-STREAM.md)) |
 | `spreadsheet/` | **PHOSPHOR-SHEET** — spreadsheet projection + governed XLSX control plane ([spec](spreadsheet/PHOSPHOR-SHEET.md)) |
-| `wasm/` | **v0.6** — Φ over real WebAssembly bytecode: binary parser, functional-step interpreter, CTS mapping, headless snapshot builder (`wasm-binary.ts` / `wasm-interp.ts` / `wasm-cts.ts` / `wasm-snapshot.ts`) |
+| `wasm/` | **v0.6** — Φ over real WebAssembly bytecode: binary parser, functional-step interpreter, CTS mapping, headless snapshot builder (`wasm-binary.ts` / `wasm-interp.ts` / `wasm-cts.ts` / `wasm-snapshot.ts`); **v0.7** — `wasm-semantic.ts` (equivalence judge), `wasm-sheet-bridge.ts` (verdict → 09_Control row), `rust-fixtures/` (real `rustc`-compiled proposal fixtures) |
 | `ui/` | Human-mode React UI (single engine = the verified core; renders the CTS live) |
 | `exe/` | Node SEA packaging → a double-click `PHOSPHOR.exe` |
 
@@ -135,15 +140,21 @@ mon.emit('agent:done', { agent: 'codex', code });   // code !== 0 is auto-flagge
 
 ## Roadmap
 
-**v0.6 (this release) — shipped:**
+**v0.7 (this release) — shipped:**
+
+- **Phase 2 flagship case** — all three projections on one real story instead of three separate demos: an AI proposes an optimization to a **real `rustc -O`-compiled** WASM program ([`wasm/rust-fixtures/`](wasm/rust-fixtures/), not hand-assembled), [`wasm/wasm-semantic.ts`](wasm/wasm-semantic.ts) (`semanticEquiv`'s discipline ported to WASM's call/memory-region shape) judges it, the verdict is embedded in a `09_Control` row *before* a human ever reviews it ([`wasm/wasm-sheet-bridge.ts`](wasm/wasm-sheet-bridge.ts)), and `phosphor-control.ts` **hard-refuses** to execute any proposal not certified `equivalent` — regardless of the Approved column, so a human approving a bad proposal by mistake doesn't matter. [`ui/src/FlagshipView.jsx`](ui/src/FlagshipView.jsx) (▸ FLAGSHIP tab) shows it live: propose two variants (one a genuine safe optimization, one with a planted off-by-one), approve both, execute — only the certified one runs, and the Human-CRT view visibly switches to it.
+- **WASM in the human UI** ([`ui/src/WasmView.jsx`](ui/src/WasmView.jsx), ▸ WASM tab): the v0.6 interpreter wired into the CRT view, browser-verified against `verify:wasm`'s own results.
+- **Six themes + a settings UI** ([`ui/src/theme.jsx`](ui/src/theme.jsx)): color tokens repointed at CSS custom properties (zero changes at ~200 existing call sites) — 原版 phosphor-green, 深邃, 墨金, 米白 (the one light theme), 赤紅, 冷藍海洋 — behind a persisted `ThemeSwitcher`.
+- **PET tab** ([`ui/src/PetZone.jsx`](ui/src/PetZone.jsx)): a deliberately minimal placeholder mascot — reacts to a real background WASM run (not scripted animation), voice is pre-baked static clips (`ui/scripts/generate-pet-voices.ps1`) rather than live per-user `SpeechSynthesis`, since a live voice depends on whichever TTS happens to be installed on whoever's machine runs it.
+
+**v0.6 — shipped:**
 
 - **Φ's first non-invented target — real WebAssembly** ([`wasm/`](wasm/)): a spec-conformant `.wasm` binary parser + a functional-step interpreter (i32 core, structured control flow, `call`, one linear memory) + a CTS mapping over the linear-memory address space + a headless snapshot builder — all the same roles VM-16/64/BASIC already fill, now over an architecture nobody had to invent. Cross-checked against Node's own native `WebAssembly` engine on the same bytes: not internal self-consistency, agreement with an independent, spec-conformant implementation.
 - **PHOSPHOR-SHEET** ([`spreadsheet/`](spreadsheet/PHOSPHOR-SHEET.md)): a third formal Φ projection — Human UI / AI stream / now Spreadsheet — with a real dependency-free OOXML `.xlsx` writer/reader and a governed, untrusted command-intent control plane (draft → validated → approved → executed, idempotent terminal states). Framed as legibility and an audit trail for what an agent proposes and what a human approved — not as a containment/governance boundary; a soft approval gate cannot guarantee that against an increasingly capable model, and branding it as one would invite exactly that misplaced trust.
 
 **Next:**
 
-- An end-to-end flagship case strung across all three projections at once (Human CRT / AI stream / Sheet) on a real scenario, instead of three projections proven separately.
-- A generalized retrofit methodology: the CTS six layers restated as domain-agnostic roles, an explicit determinism/observability tier system, and a guided (not fully automated) adoption path for other codebases.
+- A generalized retrofit methodology (Phase 3): the CTS six layers restated as domain-agnostic roles, an explicit determinism/observability tier system, and a guided (not fully automated) adoption path for other codebases — see `WORKPLAN.md`.
 - **EML-VM-F32 / F64** float VMs — deferred (they need a float value model, IEEE-754 ISA semantics, and a float-aware CTS/snapshot; see the v0.5 spec).
 - A **Hoare/denotational** proof layer on top of the operational judge.
 
