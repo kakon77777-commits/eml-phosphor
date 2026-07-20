@@ -6,7 +6,7 @@
 > **`phosphor-jsonl-v1` execution stream** plus the **Correspondence Table System
 > (CTS)** and the machine-readable layer under `/ai/`.
 
-PHOSPHOR · Execution-as-Interface (EAI) · `Φ : M × CTS → V` · v0.7.0-beta (EXPERIMENTAL) · Apache-2.0
+PHOSPHOR · Execution-as-Interface (EAI) · `Φ : M × CTS → V` · v0.8.0-beta (EXPERIMENTAL) · Apache-2.0
 EVEMISS TECHNOLOGY CO., LTD. (一言諾科技有限公司) · author 許筌崴 Neo.K
 Site: https://emlphosphor.com/ · Repo: https://github.com/kakon77777-commits/eml-phosphor
 
@@ -35,9 +35,10 @@ npm run verify          # core integration (36 checks)
 npm run verify:semantic # v0.5 operational equivalence judge (26)
 npm run verify:wasm     # v0.6 real WebAssembly Φ target, cross-checked against Node's native engine (24)
 npm run verify:wasm-semantic # v0.7 Phase 2 flagship flow — real-rustc equivalence judge + governed execution (17)
+npm run verify:rpn      # v0.8 Phase 3 — second, independent Tier 1 retrofit target (19)
 # full suite: verify + verify:ws + verify:stream + verify:headless + verify:eml
 #           + verify:semantic + verify:sheet + verify:sheet-control + verify:wasm
-#           + verify:wasm-semantic = 253 checks across 10 harnesses
+#           + verify:wasm-semantic + verify:rpn = 272 checks across 11 harnesses
 npm run typecheck       # tsc --noEmit, zero errors
 
 # Run a program headless and read the agent-facing stream:
@@ -84,6 +85,20 @@ checked against Node's own native `WebAssembly` engine — do not describe it as
 another invented ISA. Deferred / **not shipped**: float VMs (F32/F64), WASM
 imports/tables/call_indirect/i64/multi-value, and a formal Hoare-logic proof
 layer — do not describe these as present.
+
+## Retrofitting Φ onto a different codebase
+
+If you (an agent) are asked to bring PHOSPHOR's `Φ:M×CTS→V` pattern to a
+codebase that isn't this one, use `skills/phosphor-adopt/SKILL.md` — it's a
+guided, collaborative process (classify the target's determinism tier, draft
+a CTS mapping role-by-role, stop for human confirmation, then build) with a
+hard v1 scope limit: Tier 1 (deterministic, tick-based, replayable) targets
+only. `EAI-RETROFIT.md` has the full rationale and two worked examples
+(WASM, and `rpn/` — a from-scratch stack-based calculator sharing no code
+with any VM here, built specifically to test whether the six roles transfer
+or were secretly VM-specific). Do not skip the confirmation step to move
+faster — a plausible-looking CTS mapping that was never checked is a worse
+outcome than no projection at all.
 
 ## Machine-readable knowledge (AICL / AIRS)
 

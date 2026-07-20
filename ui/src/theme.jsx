@@ -14,7 +14,7 @@ import { useState, useEffect, useRef } from 'react';
 // a literal hex color inline (a per-widget accent tweak, not read through `C`)
 // do NOT reskin — only the shared token surface does. Untangling every such
 // literal is a separate follow-up, not implied by this pass.
-export const VERSION = '0.7.0-beta.0';
+export const VERSION = '0.8.0-beta.0';
 
 const VAR = {
   bg: '--p-bg', fg: '--p-fg', bright: '--p-bright', dim: '--p-dim', muted: '--p-muted',

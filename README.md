@@ -5,19 +5,17 @@
 > 可見即可視 · **Visible ≡ Visualizable**
 
 > [!WARNING]
-> **v0.7.0-beta — EXPERIMENTAL / test release.** v0.7 is the Phase 2 flagship
-> case: an AI proposes an optimization to a **real `rustc`-compiled** WASM
-> program ([`wasm/rust-fixtures/`](wasm/rust-fixtures/)), [`wasm/wasm-semantic.ts`](wasm/wasm-semantic.ts)
-> judges it, PHOSPHOR-SHEET's governed `09_Control` plane executes only what
-> was certified — a human approving a not-equivalent proposal by mistake does
-> not matter, the hard gate refuses it regardless. All three projections
-> (Human CRT / AI stream / Sheet) act on this one story at once in
-> [`ui/src/FlagshipView.jsx`](ui/src/FlagshipView.jsx) (▸ FLAGSHIP tab). Only
-> an i32/structured-control-flow WASM subset is supported (real modules
-> outside that subset fail loudly rather than mis-execute — see
-> [`wasm/wasm-binary.ts`](wasm/wasm-binary.ts)). The verified v0.6 core (WASM
-> interpreter, VM family, semantic layer, EML interop) is unchanged and stays
-> green.
+> **v0.8.0-beta — EXPERIMENTAL / test release.** v0.8 is Phase 3: the CTS six
+> layers restated as domain-agnostic roles + a determinism tier system
+> ([`EAI-RETROFIT.md`](EAI-RETROFIT.md)), a guided (not automated) Claude Code
+> Skill for retrofitting Φ onto other codebases ([`skills/phosphor-adopt/`](skills/phosphor-adopt/)),
+> and a second, independent Tier 1 target built to that checklist — a
+> stack-based RPN calculator ([`rpn/`](rpn/)) sharing no code with VM-16 or
+> WASM, proving the six-role reframing wasn't secretly VM-specific (one role,
+> Decoded Content, comes back honestly empty — not faked). v1 scope is Tier 1
+> only; a target that fails the determinism check gets told so, not force-fit.
+> The verified v0.7 core (Phase 2 flagship, WASM interpreter, VM family,
+> semantic layer, EML interop) is unchanged and stays green.
 
 PHOSPHOR is a small, dependency-light infrastructure built on one claim: a VM's actual execution, once paired with a complete **Correspondence Table System (CTS)**, is simultaneously a human-readable visualization *and* an AI-parseable event stream — not two representations of one object, but the *same* object viewed two ways.
 
@@ -58,6 +56,7 @@ npm run verify:sheet    # v1.1 PHOSPHOR-SHEET workbook + real XLSX (29)
 npm run verify:sheet-control # v1.2 interactive control-plane round trip (32)
 npm run verify:wasm     # v0.6 real WebAssembly Φ target, cross-checked against Node's native engine (24)
 npm run verify:wasm-semantic # v0.7 Phase 2 flagship flow — real-rustc equivalence judge + governed execution (17)
+npm run verify:rpn      # v0.8 Phase 3 — second, independent Tier 1 retrofit target (19)
 npm run typecheck       # tsc --noEmit, zero errors
 ```
 
@@ -97,6 +96,8 @@ A self-contained double-click binary (no Node required) can be built with `node 
 | `stream/` | **phosphor-stream** — a portable "state → AI-readable event stream" standard ([spec](stream/PHOSPHOR-STREAM.md)) |
 | `spreadsheet/` | **PHOSPHOR-SHEET** — spreadsheet projection + governed XLSX control plane ([spec](spreadsheet/PHOSPHOR-SHEET.md)) |
 | `wasm/` | **v0.6** — Φ over real WebAssembly bytecode: binary parser, functional-step interpreter, CTS mapping, headless snapshot builder (`wasm-binary.ts` / `wasm-interp.ts` / `wasm-cts.ts` / `wasm-snapshot.ts`); **v0.7** — `wasm-semantic.ts` (equivalence judge), `wasm-sheet-bridge.ts` (verdict → 09_Control row), `rust-fixtures/` (real `rustc`-compiled proposal fixtures) |
+| `rpn/` | **v0.8** — a second, independent Tier 1 retrofit target (stack-based RPN calculator, no shared code with VM-16/WASM) built to `EAI-RETROFIT.md`'s checklist (`rpn-core.ts` / `rpn-cts.ts` / `rpn-snapshot.ts`) |
+| `skills/phosphor-adopt/` | **v0.8** — the guided Claude Code Skill for retrofitting Φ onto other codebases |
 | `ui/` | Human-mode React UI (single engine = the verified core; renders the CTS live) |
 | `exe/` | Node SEA packaging → a double-click `PHOSPHOR.exe` |
 
@@ -130,6 +131,7 @@ mon.emit('agent:done', { agent: 'codex', code });   // code !== 0 is auto-flagge
 
 ## Documentation
 
+- **[EAI-RETROFIT.md](EAI-RETROFIT.md)** — Phase 3: the CTS six layers as domain-agnostic roles, the determinism tier system, and what a completed retrofit has to produce. Paired with [`skills/phosphor-adopt/SKILL.md`](skills/phosphor-adopt/SKILL.md), the guided process for applying it to a codebase that isn't PHOSPHOR's own.
 - **[EML-EAI-2026-v0.5.md](EML-EAI-2026-v0.5.md)** — the current spec (v0.5 EXPERIMENTAL): semantic layer, EML interop, version strategy.
 - **[EML-EAI-2026-v0.4.md](EML-EAI-2026-v0.4.md)** — the v0.4 spec (dual-mode architecture, AI-mode applications, headless VM, EML-VM-BASIC).
 - **[stream/EML-INTEROP.md](stream/EML-INTEROP.md)** — PHOSPHOR ⇄ EML `phosphor-jsonl-v1` envelope diff + what PHOSPHOR extracts from an EML trace.
@@ -140,7 +142,13 @@ mon.emit('agent:done', { agent: 'codex', code });   // code !== 0 is auto-flagge
 
 ## Roadmap
 
-**v0.7 (this release) — shipped:**
+**v0.8 (this release) — shipped:**
+
+- **Phase 3 — CTS as domain-agnostic roles + a determinism tier system** ([`EAI-RETROFIT.md`](EAI-RETROFIT.md)): the six CTS layers restated as roles that don't presuppose a VM (Unit Vocabulary / Location Naming / Region Typing / Decoded Content / Intent Annotation / Provenance Graph), plus an explicit Tier 1/2/3 taxonomy stating exactly what Φ's guarantee costs and where it stops being honest to claim — v1 scope is Tier 1 (deterministic, tick-based, replayable) only.
+- **`skills/phosphor-adopt/`** — a guided Claude Code Skill for retrofitting Φ onto *other* codebases: classify the target's tier → find whether code and state share an address space → draft the CTS mapping role-by-role and stop for human confirmation → build the snapshot builder → verify against an independent reference. Deliberately not a one-shot generator — the confirmation gate is load-bearing.
+- **`rpn/`** — a second, independent Tier 1 target (a stack-based RPN calculator with named variables) built to the skill's own checklist, sharing no code with VM-16 or WASM, proving the six roles actually transfer rather than being VM-16 in disguise. One role (Decoded Content) comes back honestly empty for this domain — not faked to look complete.
+
+**v0.7 — shipped:**
 
 - **Phase 2 flagship case** — all three projections on one real story instead of three separate demos: an AI proposes an optimization to a **real `rustc -O`-compiled** WASM program ([`wasm/rust-fixtures/`](wasm/rust-fixtures/), not hand-assembled), [`wasm/wasm-semantic.ts`](wasm/wasm-semantic.ts) (`semanticEquiv`'s discipline ported to WASM's call/memory-region shape) judges it, the verdict is embedded in a `09_Control` row *before* a human ever reviews it ([`wasm/wasm-sheet-bridge.ts`](wasm/wasm-sheet-bridge.ts)), and `phosphor-control.ts` **hard-refuses** to execute any proposal not certified `equivalent` — regardless of the Approved column, so a human approving a bad proposal by mistake doesn't matter. [`ui/src/FlagshipView.jsx`](ui/src/FlagshipView.jsx) (▸ FLAGSHIP tab) shows it live: propose two variants (one a genuine safe optimization, one with a planted off-by-one), approve both, execute — only the certified one runs, and the Human-CRT view visibly switches to it.
 - **WASM in the human UI** ([`ui/src/WasmView.jsx`](ui/src/WasmView.jsx), ▸ WASM tab): the v0.6 interpreter wired into the CRT view, browser-verified against `verify:wasm`'s own results.
@@ -154,7 +162,7 @@ mon.emit('agent:done', { agent: 'codex', code });   // code !== 0 is auto-flagge
 
 **Next:**
 
-- A generalized retrofit methodology (Phase 3): the CTS six layers restated as domain-agnostic roles, an explicit determinism/observability tier system, and a guided (not fully automated) adoption path for other codebases — see `WORKPLAN.md`.
+- Tier 2 (event-driven, instrumentable) support for `phosphor-adopt` — real future work, not yet attempted on a real target; see `EAI-RETROFIT.md` §3.
 - **EML-VM-F32 / F64** float VMs — deferred (they need a float value model, IEEE-754 ISA semantics, and a float-aware CTS/snapshot; see the v0.5 spec).
 - A **Hoare/denotational** proof layer on top of the operational judge.
 
